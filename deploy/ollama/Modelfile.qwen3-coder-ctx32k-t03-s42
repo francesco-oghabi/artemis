@@ -1,0 +1,27 @@
+# Modelfile for the custom model used as the planner/worker LLM in Artemis.
+# Ollama name: qwen3-coder-ctx32k-t03-s42
+#
+# Base: Qwen3-Coder-30B-A3B-Instruct, Q4_K_M quant (qwen3moe architecture,
+#       30.5B total / ~3B active, 128 experts / 8 used, GQA with 4 KV heads).
+#
+# Parameter rationale (details in deploy/ollama/README.md):
+#   - seed 42 + temperature 0.3: reproducible, comparable benchmark runs
+#     (sampling variance kept low, not zero).
+#   - num_ctx 32768: multi-step agentic sessions accumulate a lot of context;
+#     32k avoids truncation mid-intent. Cost: ~1.5 GB KV cache per slot.
+#   - top_k 20 / top_p 0.8 / repeat_penalty 1.05: Qwen3-Coder recommended defaults.
+
+FROM qwen3-coder:30b
+TEMPLATE {{ .Prompt }}
+RENDERER qwen3-coder
+PARSER qwen3-coder
+PARAMETER stop <|im_start|>
+PARAMETER stop <|im_end|>
+PARAMETER stop <|endoftext|>
+PARAMETER temperature 0.3
+PARAMETER top_k 20
+PARAMETER top_p 0.8
+PARAMETER num_ctx 32768
+PARAMETER repeat_penalty 1.05
+PARAMETER seed 42
+# Base model license: Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0).

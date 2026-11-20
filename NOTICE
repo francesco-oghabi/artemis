@@ -1,0 +1,28 @@
+Artemis
+Copyright (c) 2026 The Artemis authors
+
+This product is licensed under the GNU Affero General Public License v3.0
+(AGPL-3.0). See the LICENSE file for the full text.
+
+-------------------------------------------------------------------------------
+Attribution / provenance
+-------------------------------------------------------------------------------
+
+Artemis is a derivative work. Its lineage is:
+
+  ARTEX        by @Autumn-27     https://github.com/Autumn-27
+    └── AntiFox by AntiFox-AI     https://github.com/AntiFox-AI/antifox
+          └── Artemis (this project)
+
+AntiFox is itself a fork of ARTEX that re-centered the engineering on
+evidence-driven delivery. Artemis builds on AntiFox's foundation (dual-graph
+exploration engine, MITM traffic capture, rule-based HITL interception,
+multi-agent orchestration) and focuses on making open-weight local models
+usable as the reasoning core of an autonomous penetration-testing loop.
+
+We gratefully acknowledge the foundational work of the ARTEX and AntiFox
+authors. Under the terms of AGPL-3.0 the complete corresponding source of
+Artemis is published in this repository.
+
+Inline source comments that read "AntiFox 0.3.x" refer to specific upstream
+versions a given mechanism was ported from, and are preserved as attribution.

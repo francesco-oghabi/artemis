@@ -1,0 +1,50 @@
+# --- backend ---
+/data/
+*.db
+*.db-wal
+*.db-shm
+config.json
+scheduler_state.json
+__pycache__/
+*.pyc
+*.pyo
+
+# embedded frontend / single-binary build artifacts
+/artemis
+/server/webui/dist/
+/server/skillsdist/
+
+# --- frontend ---
+/web/node_modules/
+/web/.next/
+/web/out/
+/web/tsconfig.tsbuildinfo
+/web/next-env.d.ts
+
+# --- local deploy (contains passwords/keys, never committed) ---
+.env
+docker-compose.override.yml
+
+# --- build / dist ---
+/dist/
+/.buildcache/
+
+# --- local publishing tooling (private paths, not shipped) ---
+/publish.sh
+
+# --- dev tools / editors ---
+.playwright-mcp/
+.playwright-cli/
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- agent/session local state ---
+.claude/
+*-this-session-is-being-continued-*.txt
+
+# --- os ---
+.DS_Store
+Thumbs.db
+*.local

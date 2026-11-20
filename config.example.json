@@ -1,0 +1,12 @@
+{
+  "_comment": "Copy to config.json (or set the database via the ARTEMIS_PG_DSN env var).",
+  "_comment_database": "PostgreSQL connection. Priority: env var ARTEMIS_PG_DSN > this file's database. Fill the fields below, or just database.dsn with a full connection string.",
+  "database": {
+    "host": "127.0.0.1",
+    "port": 5432,
+    "user": "artemis",
+    "password": "",
+    "dbname": "artemis",
+    "sslmode": "disable"
+  }
+}

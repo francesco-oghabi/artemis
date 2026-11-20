@@ -1,0 +1,40 @@
+# syntax=docker/dockerfile:1
+#
+# Dockerfile di sola compilazione: builda il frontend (Node) e il binario Go
+# interamente dentro container, incorporando frontend (embedui) e skill, ed
+# esporta il binario linux/amd64. Non modifica il Dockerfile di runtime del
+# progetto, che continua ad aspettarsi dist/<arch>/artemis gia' pronto.
+#
+# Uso (due passi):
+#   docker build -f Dockerfile.build --output type=local,dest=dist/amd64 .
+#   docker build -t artemis:custom .
+
+# 1) Frontend statico (Next.js export) -> web/out
+FROM node:22-bookworm AS web
+WORKDIR /app/web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+COPY web/ ./
+RUN npm run build:static
+
+# 2) Binario Go con UI e skill incorporate
+FROM golang:1.26.3 AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+# frontend incorporato (go:embed all:webui/dist)
+COPY --from=web /app/web/out/ ./server/webui/dist/
+# skill incorporate (go:embed all:skillsdist), come la CI: report-generation
+# e' generata lato Go, quindi esclusa
+RUN mkdir -p server/skillsdist \
+    && cp -r skills/. server/skillsdist/ \
+    && rm -rf server/skillsdist/report-generation
+ENV CGO_ENABLED=0 GOARCH=amd64
+RUN go build -tags embedui -trimpath \
+    -ldflags "-s -w -X main.version=dev" \
+    -o /out/artemis ./cmd/artemis
+
+# 3) Esporta solo il binario (verso dist/amd64/ con --output)
+FROM scratch AS export
+COPY --from=build /out/artemis /artemis
