@@ -9,10 +9,15 @@ grouped by theme, not hard-dated.
 
 - **Deterministic verifiers for more classes.** The rendering oracle (`xss_verify`) and
   endpoint discovery (`endpoint_discover`) proved the pattern: take a technique out of the
-  weak model's hands and make the verdict deterministic. Extend it to classes currently
-  only *asserted* by the model: exposure/metrics endpoints, secret/key directories, backup
-  files, missing security headers (CSP), and an open-redirect verifier that confirms the
-  `Location` bypass.
+  weak model's hands and make the verdict deterministic. A first suite now ships over a
+  `VulnClass` interface, `exposure_verify` (exposed files/directories/metrics),
+  `csp_verify` (missing CSP), `injection_verify` (SQL/NoSQL probing), `captcha_verify`,
+  `traversal_verify` (null-byte path traversal) and `jwt_verify`, lifting the best run to
+  ~9-11 of the 18 classes. Still only *asserted* and needing their own oracle: V06 IDOR and
+  V16 negative quantity. Not yet reached at all: V05 mass assignment (no verifier) and V08
+  stored XSS (plant + render, reusing `xss_verify`). V04 JWT forgery has an oracle that
+  does not break the Juice Shop variant; it needs the RS256→HS256 key-confusion technique
+  (sign HS256 with the public key), which is less generic.
 - **Breadth that gets executed.** Finish tuning the frontier drain and per-intent budget
   so the planner's breadth is actually executed before a run closes, and scale throughput
   with multiple workers.
@@ -24,7 +29,11 @@ grouped by theme, not hard-dated.
 
 - **Negative-as-finding guardrail (code).** A filter that refuses, or demotes to a fact,
   "findings" that are negative observations ("not vulnerable to X"), which otherwise
-  inflate the count. To be added carefully so it does not hide real analysis.
+  inflate the count. To be added carefully so it does not hide real analysis. This is the
+  **current bottleneck**: the oracles raised coverage but the finding count is still dirty
+  (negatives recorded as findings plus duplicates make up a large share of a run), and the
+  oracles do not suppress it because the weak model ignores the "negative, record a fact"
+  rule. It needs a code-level guardrail.
 - **"Already-done" overview + anti-contamination.** A synthetic view of classes already
   tested / confirmed / excluded, distinguishing a tested-and-blocked result with concrete
   proof from an unproven generalization, so a hallucinated belief cannot suppress a whole

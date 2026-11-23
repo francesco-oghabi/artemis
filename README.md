@@ -122,12 +122,54 @@ here, the limit is the model, not the plumbing.
   traversal). This is the yardstick Artemis measures the local model against.
 - **Local open-weight model.** A ~30B open-weight coder model served locally on a
   single consumer GPU via Ollama. Early runs landed at roughly 2 to 6 vulnerabilities
-  with high run-to-run variance.
+  with high run-to-run variance. After the deterministic-verifier suite below, the best
+  single run reaches **~9 to 11 of the 18 classes confirmed by an in-code oracle** (a
+  real jump, not parity, see the honest caveats).
 
 The metric that matters for a pentest tool is **coverage**: how many *real* distinct
 vulnerabilities surface, taken as the **union over N runs** (not a single run, where
 variance dominates). The research direction is therefore broad exploration plus
 aggregation, not chasing a single reproducible trajectory.
+
+### The 18 classes, class by class (best local run vs frontier)
+
+The frontier reference exploited **18 distinct vulnerabilities** (5 critical, 7 high, 5
+medium, 1 low). The table below is the honest per-class standing of the local 30B in its
+**best single run** so far. Legend: ✅ confirmed by a deterministic in-code oracle, 🟡
+asserted by the model (real, but no oracle, so it varies run to run), 🔴 attempted but
+not broken, ⬜ not reached.
+
+| # | Class | Frontier | Local (best run) | How the local model is judged |
+|---|---|:---:|:---:|---|
+| V01 | SQLi login bypass | ✓ | ✅ | `injection_verify` (auth-bypass tautology) |
+| V02 | SQLi UNION dump | ✓ | ✅* | `injection_verify` (injectable + UNION columns; full dump not done) |
+| V03 | SQLi, targeted login as chosen user | ✓ | ⬜ | not distinguished from V01 |
+| V04 | JWT `alg:none` forgery | ✓ | 🔴 | `jwt_verify` runs but does not break the JS variant (needs RS256→HS256) |
+| V05 | Mass assignment of role | ✓ | ⬜ | no verifier yet |
+| V06 | IDOR basket | ✓ | 🟡 | asserted, no oracle |
+| V07 | NoSQL mass-update | ✓ | 🟡 | `injection_verify` NoSQL mode, partial |
+| V08 | **Stored** XSS in reviews | ✓ | ⬜ | reflected/DOM only, not stored |
+| V09 | Path traversal null-byte | ✓ | ✅ | `traversal_verify` |
+| V10 | Confidential document `/ftp` | ✓ | ✅ | `exposure_verify` |
+| V11 | Directory `/encryptionkeys` | ✓ | ✅ | `exposure_verify` |
+| V12 | Weak MD5 hashes | ✓ | ⬜ | needs the V02 dump first, then hash analysis |
+| V13 | Open redirect | ✓ | ✅ | `redirect_verify` |
+| V14 | Verbose SQL errors | ✓ | 🟡 | `injection_verify` error-based (inconsistent) |
+| V15 | `/metrics` endpoint | ✓ | ✅ | `exposure_verify` |
+| V16 | Negative quantity (business logic) | ✓ | 🟡 | asserted, no oracle |
+| V17 | Missing CSP | ✓ | ✅ | `csp_verify` |
+| V18 | CAPTCHA in the response | ✓ | ✅ | `captcha_verify` |
+|  | Reflected / DOM XSS | ✓ | ✅ | `xss_verify` (rendering oracle) |
+
+**Honest reading.** Oracle-confirmed: ~10. Additionally asserted (union over runs):
++4 to 5. Genuinely not reached: **4** (V04 JWT forgery, V05 mass assignment, V08 stored
+XSS, V12 weak hashes). Two gaps dominate and neither is closed: (1) **depth**, the
+oracles prove a class *exists* but do not build the full exploitation chain the frontier
+does (dump 25 users, forge, crack hashes, chain); (2) **noise**, even where coverage is
+good the count is dirty (negatives recorded as findings, duplicates). And the comparison
+is **not at harness parity**: the frontier model was driven in a direct session (full
+shell), the local model inside Artemis's constrained planner/worker loop, so the gap is
+model *plus* harness.
 
 Full methodology and the honest results in [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
@@ -142,6 +184,14 @@ item is either a structural guarantee in code or a measured lever:
 - **`xss_verify`** (engine): a deterministic rendering oracle (headless Chromium) that
   fires canonical non-`<script>` payloads and reports, deterministically, whether one
   executes in the DOM, taking the technique out of the weak model's hands.
+- **Deterministic verifier suite over a `VulnClass` interface**: a family of in-code
+  oracles (`exposure_verify` for exposed files/dirs/metrics, `csp_verify` for a missing
+  CSP, `injection_verify` for SQL/NoSQL probing, `captcha_verify`, `traversal_verify`
+  for null-byte path traversal, `jwt_verify`) that each return a deterministic verdict
+  instead of trusting what the weak model asserts. This is what lifts the best run from
+  ~2 to 6 up to ~9 to 11 of the 18 classes (see the table above).
+- **No-progress worker terminator**: `record_fact` detects a worker making no new
+  progress on an intent and frees it, instead of burning the budget in place.
 - **Deterministic intent expansion**: code expands the discovered surface into
   concrete, self-contained intents (exact URL plus the exact verifier to call), so
   coverage no longer depends on the planner happening to generate the right intent.

@@ -476,7 +476,7 @@ func splitLines(s string) []string {
 
 // WorkerTools returns the tool set for a work agent.
 func (t *ToolSet) WorkerTools() []actool.CoreTool {
-	return []actool.CoreTool{
+	base := []actool.CoreTool{
 		t.listFindings(), t.listFacts(), t.nodeDetail(),
 		t.addFinding(), t.recordFact(),
 		// cross-work retrieval
@@ -485,11 +485,11 @@ func (t *ToolSet) WorkerTools() []actool.CoreTool {
 		t.insertAssets(), t.addCompanyScope(), t.listAssets(), t.listCompanies(),
 		// knowledge base (global + this task); nil store guarded internally
 		t.searchKnowledge(), t.listKnowledgeCategories(),
-		// XSS rendering oracle: deterministic client-side/DOM XSS verification
-		t.xssVerify(),
-		// Open-redirect verifier: deterministic Location-header verification
-		t.redirectVerify(),
 	}
+	// Deterministic class verifiers (xss_verify, redirect_verify, ...), one per
+	// registered VulnClass. Centralized in vulnClasses so adding an oracle is a
+	// single registry entry. See vulnclass.go.
+	return append(base, t.verifierTools()...)
 }
 
 // MainAgentTools returns the human-interface tool set.
