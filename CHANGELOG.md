@@ -15,6 +15,15 @@ ARTEX). This changelog records the Artemis-specific work on top of that base; se
   (zero hardcoded paths) so workers reach the correct URL instead of giving up.
 - **`xss_verify`**: a deterministic headless-Chromium rendering oracle that confirms DOM
   execution of canonical non-`<script>` payloads.
+- **Deterministic verifier suite over a `VulnClass` interface**: in-code oracles
+  `exposure_verify` (exposed files/directories/metrics), `csp_verify` (missing CSP),
+  `injection_verify` (SQL/NoSQL probing), `captcha_verify`, `traversal_verify` (null-byte
+  path traversal) and `jwt_verify`, each returning a deterministic verdict instead of
+  trusting the model's assertion. Lifts the best single run on Juice Shop from ~2-6 to
+  ~9-11 of the frontier's 18 classes (oracle-confirmed; see `docs/BENCHMARK.md` for the
+  honest caveats on depth, noise and harness parity).
+- **No-progress worker terminator** in `record_fact`: frees a worker that stops making new
+  progress on an intent instead of burning the per-intent budget in place.
 - **Deterministic intent expansion**: code expands the discovered surface into concrete,
   self-contained intents so coverage does not depend on planner luck.
 - **Semantic knowledge retrieval** via pgvector plus local Ollama embeddings, replacing a

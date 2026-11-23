@@ -61,6 +61,13 @@ type ToolSet struct {
 	GoalMet   bool
 	Reason    string
 	writes    WriteCounts
+	// redundantFacts counts CONSECUTIVE record_fact calls on this intent that added
+	// nothing new (every item deduped to an existing fact). A ToolSet is built fresh
+	// per intent (Worker.Execute → NewToolSet), so this is naturally per-intent and
+	// resets with each intent. A weak worker re-records the same conclusion instead
+	// of finishing; a few no-progress calls in a row mean it is spinning, so
+	// record_fact ends the run cleanly (see noProgressFactStop).
+	redundantFacts int
 	// killWork, if set, terminates a running work by intent id (engine callback,
 	// wired by the planner). nil = the kill_work tool reports unavailable.
 	killWork func(intentID int64) error
@@ -467,6 +474,9 @@ var intentClassKeywords = []struct{ pat, canon string }{
 	{"authentication bypass", "authbypass"}, {"auth bypass", "authbypass"}, {"login bypass", "authbypass"},
 	{"privilege escalation", "privesc"}, {"broken access", "accesscontrol"},
 	{"open redirect", "openredirect"}, {"jwt", "jwt"},
+	{"content security policy", "csp"}, {"content-security-policy", "csp"},
+	{"sensitive path exposure", "exposure"}, {"security misconfiguration", "exposure"},
+	{"captcha", "captcha"},
 	{"reconnaissance", "recon"}, {"enumerate", "recon"}, {"enumeration", "recon"}, {"fingerprint", "recon"},
 }
 
@@ -953,11 +963,34 @@ func jaccard(a, b map[string]struct{}) float64 {
 // facts that only share a topic).
 const factDupJaccard = 0.82
 
+// noProgressFactStop is how many CONSECUTIVE no-progress record_fact calls (each
+// adding nothing new to the graph) end a worker's intent run. Tuned from the
+// observed loop (a weak worker re-recording the same conclusion 5-7x on one
+// intent): 4 tolerates a couple of redundant restatements but cuts the spin well
+// before the per-intent turn/time budget. A call that records a new fact resets
+// the count.
+const noProgressFactStop = 4
+
 // recordOneFact 写一条 fact 节点并连到意图（intent→yields→fact）。defaultIntent 为
 // 批量时的默认意图（本条未给 intent_id 时用）。
-func (t *ToolSet) recordOneFact(it factItem, defaultIntent int64) (int64, error) {
+// noteFactProgress updates the per-intent no-progress counter after a record_fact
+// call and reports whether the worker should now end its run (it is spinning,
+// re-recording with nothing new). anyCreated = the call added at least one NEW
+// fact, which resets the counter.
+func (t *ToolSet) noteFactProgress(anyCreated bool) (stop bool) {
+	if anyCreated {
+		t.redundantFacts = 0
+		return false
+	}
+	t.redundantFacts++
+	return t.redundantFacts >= noProgressFactStop
+}
+
+// recordOneFact returns the fact node id, whether a NEW node was created (false
+// when the fact deduped to an existing one), and any error.
+func (t *ToolSet) recordOneFact(it factItem, defaultIntent int64) (int64, bool, error) {
 	if strings.TrimSpace(it.Summary) == "" {
-		return 0, fmt.Errorf("summary cannot be empty")
+		return 0, false, fmt.Errorf("summary cannot be empty")
 	}
 	// dedup (L3d): weak workers re-record the same conclusion many times (task 34:
 	// 612 facts but only 302 unique; a single negative restated ~48x), bloating the
@@ -974,10 +1007,10 @@ func (t *ToolSet) recordOneFact(it factItem, defaultIntent int64) (int64, error)
 				}
 				_ = json.Unmarshal(n.Payload, &p)
 				if newExact != "" && normToken(p.Summary) == newExact {
-					return n.ID, nil // identical conclusion already recorded
+					return n.ID, false, nil // identical conclusion already recorded
 				}
 				if len(newTok) >= 3 && jaccard(newTok, factTokens(p.Summary)) >= factDupJaccard {
-					return n.ID, nil // reworded restatement of an existing fact
+					return n.ID, false, nil // reworded restatement of an existing fact
 				}
 			}
 		}
@@ -995,7 +1028,7 @@ func (t *ToolSet) recordOneFact(it factItem, defaultIntent int64) (int64, error)
 	// a fact is its OWN node kind (distinct from a vuln finding).
 	id, err := t.ts.AddNode(db.KindFact, payload, 5, "confirmed", t.worker, pidList(it.AssetIDs))
 	if err != nil {
-		return 0, err
+		return 0, false, err
 	}
 	intent := pid(it.IntentID)
 	if intent <= 0 {
@@ -1005,7 +1038,7 @@ func (t *ToolSet) recordOneFact(it factItem, defaultIntent int64) (int64, error)
 		_ = t.ts.Link(intent, db.RelYields, id) // chain: intent -> fact
 	}
 	t.writes.Facts++
-	return id, nil
+	return id, true, nil
 }
 
 func (t *ToolSet) recordFact() actool.CoreTool {
@@ -1040,18 +1073,44 @@ func (t *ToolSet) recordFact() actool.CoreTool {
 
 			ids := make([]int64, len(items))
 			errs := map[string]string{}
+			anyCreated := false
 			for i, it := range items {
-				id, err := t.recordOneFact(it, defaultIntent)
+				id, created, err := t.recordOneFact(it, defaultIntent)
 				if err != nil {
 					errs[strconv.Itoa(i)] = err.Error()
 					continue
 				}
 				ids[i] = id
+				if created {
+					anyCreated = true
+				}
 			}
+
+			// No-progress terminator (Lever 1+2): a call that added nothing new (all
+			// items deduped) is a no-progress tick; a NEW fact resets the counter.
+			// After noProgressFactStop consecutive no-progress calls the worker is
+			// re-recording its one intent's conclusion instead of finishing, so end
+			// the run cleanly (StopContinuation -> ReasonHookStopped -> intent done)
+			// and let the loop advance. Below the threshold, a redundant call still
+			// gets a nudge to stop.
+			stop := t.noteFactProgress(anyCreated)
 
 			if !batch { // 单条：保持原返回
 				if e, bad := errs["0"]; bad {
 					return actool.Errorf(e), nil
+				}
+				if stop {
+					r := actool.Text(fmt.Sprintf(
+						"This conclusion was already recorded and you have now repeated record_fact %d times on this intent "+
+							"without adding anything new. The intent's result is already in the graph, so this run is ending "+
+							"and the loop will move to the next intent. Do NOT re-record the same conclusion.", t.redundantFacts))
+					r.StopContinuation = true
+					return r, nil
+				}
+				if !anyCreated {
+					return actool.Text(fmt.Sprintf(
+						"fact already recorded (#%d): nothing new was added. If your assigned check is complete, STOP now "+
+							"(end with a brief final note, no more tool calls) instead of re-recording the same conclusion.", ids[0])), nil
 				}
 				return actool.Text(fmt.Sprintf("fact recorded: %d", ids[0])), nil
 			}
@@ -1059,7 +1118,14 @@ func (t *ToolSet) recordFact() actool.CoreTool {
 			if len(errs) > 0 {
 				out["errors"] = errs
 			}
-			return jsonResult(out)
+			r, jerr := jsonResult(out)
+			if jerr != nil {
+				return r, jerr
+			}
+			if stop {
+				r.StopContinuation = true
+			}
+			return r, nil
 		})
 }
 

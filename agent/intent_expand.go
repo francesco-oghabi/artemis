@@ -79,31 +79,6 @@ type ParamHit struct {
 	Param string
 }
 
-// expandClass is one vulnerability class the expander can populate the frontier
-// with. summaries turns the discovered Surface into a list of self-contained,
-// executable intent texts (URL + the exact verifier tool to call), one per
-// candidate; an empty slice means "nothing to do / not ready", so the engine
-// retries this class next round. The verifier itself is a separate WorkerTools
-// tool (xss_verify, redirect_verify), not held here.
-//
-// This is deliberately a LIGHTWEIGHT abstraction (a slice of structs, not a rich
-// interface): for now there are only two classes. Revisit the shape when the third
-// class (IDOR) arrives and tells us whether the slice still fits. See memory
-// expander-lightweight-abstraction.
-type expandClass struct {
-	name string
-	// summaries turns the Surface into intent texts; cap bounds how many it writes
-	// (per-class, configurable; cap<=0 means "use this class's default").
-	summaries func(s Surface, maxN int) []string
-}
-
-// expandClasses is the registry the generic expander iterates. Adding a class is
-// adding one entry here plus its verifier tool. Order is stable (XSS first).
-var expandClasses = []expandClass{
-	{name: "xss", summaries: xssSummaries},
-	{name: "openredirect", summaries: openRedirectSummaries},
-}
-
 // ExpandReadyClasses deterministically populates the frontier with verification
 // intents for every registered class whose data is ready and that has not fired
 // yet. The engine calls it each planner round, passing which classes already
@@ -126,11 +101,16 @@ func ExpandReadyClasses(ts *db.ExplorationStore, s Surface, fired map[string]boo
 		return perClass, nil
 	}
 	t := &ToolSet{ts: ts, worker: "intent-expander"}
-	for _, c := range expandClasses {
-		if fired[c.name] {
+	for _, c := range vulnClasses {
+		name := c.Name()
+		if fired[name] {
 			continue
 		}
-		sums := c.summaries(s, caps[c.name])
+		mn := caps[name]
+		if mn <= 0 {
+			mn = c.DefaultCap()
+		}
+		sums := c.Expand(s, mn)
 		if len(sums) == 0 {
 			continue // not ready / nothing discovered for this class: retry next round
 		}
@@ -141,8 +121,8 @@ func ExpandReadyClasses(ts *db.ExplorationStore, s Surface, fired map[string]boo
 				n++
 			}
 		}
-		perClass[c.name] = n
-		nowFired = append(nowFired, c.name)
+		perClass[name] = n
+		nowFired = append(nowFired, name)
 	}
 	return perClass, nowFired
 }

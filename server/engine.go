@@ -486,20 +486,49 @@ var baseURLRe = regexp.MustCompile(`(?i)\bhttps?://[^\s/"'<>)\]]+`)
 // seeds each verification frontier from the discovered surface, removing the
 // planner's chance-driven variance (tasks 51/53 never invoked the XSS oracle; 52
 // did). See agent.ExpandReadyClasses and docs/ROADMAP.md 4b/4b-bis.
+// expandClassLabel is a human label for the expander activity line, per class.
+func expandClassLabel(name string) string {
+	switch name {
+	case "xss":
+		return "XSS dalle route SPA del bundle JS"
+	case "openredirect":
+		return "open redirect dagli endpoint con parametro-URL nel traffico"
+	case "exposure":
+		return "esposizione di percorsi sensibili (metrics/encryptionkeys/ftp/.git/.env)"
+	case "csp":
+		return "Content-Security-Policy mancante"
+	case "injection":
+		return "SQL/NoSQL injection (auth-bypass + parametri GET)"
+	case "captcha":
+		return "CAPTCHA con risposta nel response"
+	case "traversal":
+		return "path traversal / null-byte su file statici"
+	case "jwt":
+		return "JWT forgery (alg:none / chiave debole)"
+	default:
+		return "classe " + name
+	}
+}
+
 func (e *Engine) maybeExpandIntents(t *Task) {
 	tr := e.m.Traffic()
 	if tr == nil || t.Store == nil {
 		return
 	}
-	// Which classes already fired for this task (keyed task+class).
+	// Which classes already fired for this task (keyed task+class). The class list
+	// comes from the agent registry (agent.ExpandClassNames), so adding a VulnClass
+	// never needs an edit here.
 	fired := map[string]bool{}
-	for _, name := range []string{"xss", "openredirect"} {
+	allDone := true
+	for _, name := range agent.ExpandClassNames() {
 		if _, done := e.expanded.Load(t.ID + "|" + name); done {
 			fired[name] = true
+		} else {
+			allDone = false
 		}
 	}
-	if fired["xss"] && fired["openredirect"] {
-		return // all classes done
+	if allDone {
+		return // every class done
 	}
 	base := strings.TrimRight(baseURLRe.FindString(t.Goal), "/.,;:)\"'")
 	if base == "" {
@@ -535,10 +564,7 @@ func (e *Engine) maybeExpandIntents(t *Task) {
 		n := perClass[name]
 		log.Printf("[expander] task %s: %d intent deterministiche classe %q", t.ID, n, name)
 		if n > 0 {
-			label := "XSS dalle route SPA del bundle JS"
-			if name == "openredirect" {
-				label = "open redirect dagli endpoint con parametro-URL nel traffico"
-			}
+			label := expandClassLabel(name)
 			e.emitActivity(t, db.Activity{Worker: "intent-expander", Kind: "text",
 				Summary: fmt.Sprintf("Espansione deterministica: %d intent di verifica %s.", n, label)})
 			woke = true

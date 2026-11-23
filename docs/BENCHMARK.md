@@ -36,7 +36,10 @@ Driven directly, the frontier model confirmed **18 distinct vulnerabilities** on
 Shop (critical through low) with real exploitation: UNION dumps, JWT `alg:none` forgery,
 mass assignment, NoSQL, path traversal, and more. Early local-model runs landed at
 roughly **2 to 6** vulnerabilities with high variance, concentrated in the "obvious
-injection / IDOR / XSS" tier, without chains or exfiltration.
+injection / IDOR / XSS" tier, without chains or exfiltration. After the deterministic
+verifier suite (below), the best single run reaches **~9 to 11 of the 18 classes
+confirmed by an in-code oracle**. This is a real jump, not parity: see "Where it stands
+now".
 
 The gap decomposes into two parts:
 
@@ -81,6 +84,8 @@ cures:
 | Semantic KB retrieval (pgvector + Ollama embeddings) | code/runtime | replaces keyword lookup that returned nothing for NL queries | keyword hits 0 to semantic hits; SQLi/XSS false-negative "myths" flipped to real findings |
 | `endpoint_discover` | code | mines real endpoints from the captured JS bundle, zero hardcoding | reached the correct endpoint; noise collapsed; new real findings (exposed `.env`, business logic) |
 | `xss_verify` oracle | code | headless-Chromium rendering oracle, deterministic DOM-execution verdict | reflected XSS confirmed with oracle evidence |
+| Deterministic verifier suite (`VulnClass`) | code | in-code oracles `exposure_verify` / `csp_verify` / `injection_verify` / `captcha_verify` / `traversal_verify` / `jwt_verify`, each a deterministic verdict | oracle-confirmed classes in the best run from ~2-6 to ~9-11 of 18 |
+| No-progress worker terminator | code | `record_fact` frees a worker that stops making new progress on an intent | runaway intents no longer burn the budget in place |
 | Deterministic intent expansion | code | expands the discovered surface into concrete self-contained intents | XSS/redirect coverage no longer depends on planner luck |
 | Frontier drain + per-intent budget | code | executes queued breadth before closing; frees runaway-intent workers | breadth executed and measured instead of orphaned |
 
@@ -90,10 +95,47 @@ low-value "blocked by SPA" noise)**; after the reach fix, a comparable run produ
 an exposed `.env`, and a genuinely tested reflected XSS), with the "blocked by the SPA"
 alibi gone.
 
+## Where it stands now
+
+After the deterministic verifier suite, the best single run on Juice Shop stands roughly
+as follows against the frontier's 18 classes. Legend: ✅ confirmed by an in-code oracle,
+🟡 asserted by the model (real, no oracle, varies run to run), 🔴 attempted but not broken,
+⬜ not reached.
+
+- **✅ oracle-confirmed (~10):** V01 SQLi login bypass, V02 SQLi UNION (injectable and
+  columns, full dump not done), V09 null-byte path traversal, V10 `/ftp`, V11
+  `/encryptionkeys`, V13 open redirect, V15 `/metrics`, V17 missing CSP, V18 CAPTCHA, plus
+  reflected/DOM XSS.
+- **🟡 asserted, no oracle (+4 to 5 across runs):** V03, V06 IDOR, V07 NoSQL, V14 verbose
+  SQL errors, V16 negative quantity.
+- **🔴/⬜ genuinely not reached (4):** V04 JWT forgery (the oracle runs but does not break
+  the Juice Shop variant; needs the RS256→HS256 confusion), V05 mass assignment (no
+  verifier), V08 stored XSS (reflected/DOM only), V12 weak MD5 hashes (needs the V02 dump
+  first).
+
+Trajectory of oracle-confirmed coverage across the verifier work: 2 → 5 → ~9 → ~10-11.
+
+Two gaps remain open and neither is closed by this work:
+
+1. **Depth.** The oracles prove a class *exists*; they do not build the full exploitation
+   chain the frontier does (dump 25 users, forge, crack hashes, chain). This is closest to
+   the model's capability ceiling.
+2. **Noise (readability).** Even where coverage is good the count is dirty: negatives
+   recorded as findings plus duplicates (a representative best run carried roughly half its
+   findings as noise). Oracles do not suppress this; it needs a code-level guardrail and is
+   the current priority.
+
+And the comparison is **not at harness parity**: the frontier model was driven in a direct
+session with a full shell, the local model inside Artemis's constrained planner/worker
+loop. The gap measured here is therefore model *plus* harness. Isolating the model gap
+needs the still-missing third data point: the frontier model driven *inside* Artemis on the
+same target.
+
 ## Honest limitations
 
-- The local model still trails the frontier's 18. This is ongoing research, not a
-  "we beat the frontier" claim.
+- The local model still trails the frontier's 18, in breadth and especially in depth. The
+  best-run figure (~9-11 oracle-confirmed) is not parity, and it is a single best run, not a
+  stable average. This is ongoing research, not a "we beat the frontier" claim.
 - Recognition variance is **reduced, not eliminated**. Coverage remains a union over runs.
 - Single-run numbers are noisy; every lever's effect is read on aggregated runs, not a
   one-to-one comparison.

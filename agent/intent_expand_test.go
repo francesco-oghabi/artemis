@@ -224,3 +224,210 @@ func TestRedirectSentinelDetection(t *testing.T) {
 		}
 	}
 }
+
+// TestNewBreadthClassesCanonicalize locks that the exposure/csp intent texts
+// canonicalize to their class (so dedup and recognition work) and that each
+// VulnClass fires exactly one intent on a bare base.
+func TestNewBreadthClassesCanonicalize(t *testing.T) {
+	s := Surface{Base: "http://juice-shop:3000"}
+	exp := exposureSummaries(s, 0)
+	if len(exp) != 1 {
+		t.Fatalf("exposureSummaries: got %d intents, want 1", len(exp))
+	}
+	if cls := intentClass(exp[0]); cls != "exposure" {
+		t.Fatalf("exposure intent class = %q, want exposure", cls)
+	}
+	csp := cspSummaries(s, 0)
+	if len(csp) != 1 {
+		t.Fatalf("cspSummaries: got %d intents, want 1", len(csp))
+	}
+	if cls := intentClass(csp[0]); cls != "csp" {
+		t.Fatalf("csp intent class = %q, want csp", cls)
+	}
+	// empty base => nothing (not ready)
+	if exposureSummaries(Surface{}, 0) != nil || cspSummaries(Surface{}, 0) != nil {
+		t.Fatal("empty base should yield no intents")
+	}
+}
+
+// TestLooksExposedRejectsSPAFallback locks the key anti-false-positive: a body
+// identical to the known-nonexistent baseline (the SPA 200+index shell) is NOT a
+// hit, while a real sensitive body is.
+func TestLooksExposedRejectsSPAFallback(t *testing.T) {
+	spaShell := "<!DOCTYPE html><html><app-root></app-root></html>"
+	// metrics served as the SPA shell: must be rejected.
+	if looksExposed("metrics", "", "text/html", spaShell, spaShell) {
+		t.Fatal("SPA-shell body must not count as metrics exposure")
+	}
+	// real Prometheus body, different from the shell: must confirm.
+	prom := "# HELP http_requests_total Total\n# TYPE http_requests_total counter\nhttp_requests_total 5\n"
+	if !looksExposed("metrics", "", "text/plain", prom, spaShell) {
+		t.Fatal("real Prometheus body must count as metrics exposure")
+	}
+	// directory listing different from the shell: confirm.
+	listing := `<html><title>listing</title><a href="a.md">a.md</a><a href="b.md">b.md</a></html>`
+	if !looksExposed("listing", "", "text/html", listing, spaShell) {
+		t.Fatal("directory listing must count as exposure")
+	}
+	// git HEAD with marker: confirm; without marker: reject.
+	if !looksExposed("git", "ref:", "text/plain", "ref: refs/heads/main\n", spaShell) {
+		t.Fatal("git HEAD with ref: marker must confirm")
+	}
+	if looksExposed("git", "ref:", "text/plain", "not a git file", spaShell) {
+		t.Fatal("body without the required marker must be rejected")
+	}
+}
+
+// TestInjectionClassSummaries locks that the injection recognizer emits an
+// auth-bypass intent (canon authbypass) plus one SQLi intent per GET-param
+// endpoint (canon sqli, distinct dedup keys), and that detection regexes fire.
+func TestInjectionClassSummaries(t *testing.T) {
+	s := Surface{
+		Base:   "http://juice-shop:3000",
+		Params: []ParamHit{{Path: "/rest/products/search", Param: "q"}, {Path: "/rest/track", Param: "id"}},
+	}
+	out := injectionSummaries(s, 0)
+	if len(out) != 3 {
+		t.Fatalf("injectionSummaries: got %d intents, want 3 (1 authbypass + 2 sqli)", len(out))
+	}
+	if cls := intentClass(out[0]); cls != "authbypass" {
+		t.Fatalf("first intent class = %q, want authbypass", cls)
+	}
+	keys := map[string]bool{}
+	for _, sm := range out[1:] {
+		if cls := intentClass(sm); cls != "sqli" {
+			t.Fatalf("sqli intent class = %q, want sqli", cls)
+		}
+		k := intentDedupKey(sm)
+		if k == "" || keys[k] {
+			t.Fatalf("sqli dedup key empty or collides: %q", k)
+		}
+		keys[k] = true
+	}
+	// empty base => nothing
+	if injectionSummaries(Surface{}, 0) != nil {
+		t.Fatal("empty base should yield no injection intents")
+	}
+}
+
+// TestInjectionDetectors locks the evidence regexes used by the prober.
+func TestInjectionDetectors(t *testing.T) {
+	for _, e := range []string{
+		"SQLITE_ERROR: near \"'\": syntax error",
+		"You have an error in your SQL syntax",
+		"ORA-00933: SQL command not properly ended",
+	} {
+		if !sqlErrorRe.MatchString(e) {
+			t.Fatalf("sqlErrorRe should match %q", e)
+		}
+	}
+	if sqlErrorRe.MatchString("totally normal product listing") {
+		t.Fatal("sqlErrorRe false positive on benign body")
+	}
+	if !looksAuthenticated(`{"authentication":{"token":"eyJhbGciOiJИ.abcdefgh.sig"}}`) {
+		t.Fatal("looksAuthenticated should detect a token field")
+	}
+	if !looksAuthenticated("prefix eyJabcdefgh.ijklmnop.qrstuvwx suffix") {
+		t.Fatal("looksAuthenticated should detect a JWT")
+	}
+	if looksAuthenticated(`{"error":"Invalid email or password"}`) {
+		t.Fatal("looksAuthenticated false positive on an auth failure")
+	}
+}
+
+// TestNoteFactProgress locks the no-progress terminator (Lever 1+2): consecutive
+// no-new-fact record_fact calls end the run after noProgressFactStop; a new fact
+// resets the counter.
+func TestNoteFactProgress(t *testing.T) {
+	ts := &ToolSet{}
+	// first (noProgressFactStop-1) redundant calls must NOT stop
+	for i := 1; i < noProgressFactStop; i++ {
+		if ts.noteFactProgress(false) {
+			t.Fatalf("stop fired too early at redundant call %d (threshold %d)", i, noProgressFactStop)
+		}
+	}
+	// the noProgressFactStop-th consecutive redundant call stops
+	if !ts.noteFactProgress(false) {
+		t.Fatalf("stop should fire at redundant call %d", noProgressFactStop)
+	}
+	// a new fact resets, so the next redundant call does not immediately stop
+	ts = &ToolSet{}
+	ts.noteFactProgress(false)
+	ts.noteFactProgress(false)
+	if ts.noteFactProgress(true) { // new fact: never stops, resets
+		t.Fatal("a new fact must not stop and must reset the counter")
+	}
+	if ts.redundantFacts != 0 {
+		t.Fatalf("new fact must reset counter, got %d", ts.redundantFacts)
+	}
+	for i := 1; i < noProgressFactStop; i++ {
+		if ts.noteFactProgress(false) {
+			t.Fatalf("after reset, stop fired too early at %d", i)
+		}
+	}
+	if !ts.noteFactProgress(false) {
+		t.Fatal("after reset, stop should fire at the threshold again")
+	}
+}
+
+// TestV18V09V04Classes locks canonicalization/firing of the captcha, traversal and
+// jwt classes plus the JWT forge helper.
+func TestV18V09V04Classes(t *testing.T) {
+	s := Surface{Base: "http://juice-shop:3000"}
+	for _, tc := range []struct {
+		name string
+		sums func(Surface, int) []string
+		want string
+	}{
+		{"captcha", captchaSummaries, "captcha"},
+		{"traversal", traversalSummaries, "traversal"},
+		{"jwt", jwtSummaries, "jwt"},
+	} {
+		out := tc.sums(s, 0)
+		if len(out) != 1 {
+			t.Fatalf("%s: got %d intents, want 1", tc.name, len(out))
+		}
+		if cls := intentClass(out[0]); cls != tc.want {
+			t.Fatalf("%s intent class = %q, want %q", tc.name, cls, tc.want)
+		}
+		if tc.sums(Surface{}, 0) != nil {
+			t.Fatalf("%s: empty base should yield no intents", tc.name)
+		}
+	}
+}
+
+// TestForgeJWTs locks the forgery helper: alg:none variants + one HS256 per weak key.
+func TestForgeJWTs(t *testing.T) {
+	// a minimal well-formed-looking token: header.payload.sig
+	tok := "eyJhbGciOiJSUzI1NiJ9.eyJ1c2VyIjoxfQ.originalsig"
+	out := forgeJWTs(tok)
+	// 2 alg:none + len(jwtWeakKeys) HS256
+	want := 2 + len(jwtWeakKeys)
+	if len(out) != want {
+		t.Fatalf("forgeJWTs: got %d variants, want %d", len(out), want)
+	}
+	// every forged token must keep the ORIGINAL payload segment
+	for _, f := range out {
+		if !strings.Contains(f[1], "eyJ1c2VyIjoxfQ") {
+			t.Fatalf("forged %q dropped the original payload", f[0])
+		}
+	}
+	// a malformed token yields nothing
+	if forgeJWTs("notajwt") != nil {
+		t.Fatal("forgeJWTs should reject a non-JWT")
+	}
+}
+
+// TestLooksServedFile: a served file body (not the SPA shell, not a listing) is a hit.
+func TestLooksServedFile(t *testing.T) {
+	shell := "<!DOCTYPE html><app-root></app-root>"
+	if looksServedFile("text/html", shell, shell) {
+		t.Fatal("SPA shell must not count as a served file")
+	}
+	if !looksServedFile("application/json", `{"dependencies":{}}`, shell) {
+		t.Fatal("a JSON file body must count as served")
+	}
+	if looksServedFile("text/html", `<html>Index of /ftp <a href=x>x</a></html>`, shell) {
+		t.Fatal("a directory listing must not count (exposure handles it)")
+	}
+}

@@ -124,12 +124,54 @@ qui, il limite è il modello, non l'impianto.
   traversal). È il metro con cui Artemis misura il modello locale.
 - **Modello a peso aperto locale.** Un modello coder a peso aperto da ~30B servito in
   locale su una singola GPU consumer via Ollama. I primi run si fermavano a circa 2-6
-  vulnerabilità con alta varianza tra run.
+  vulnerabilità con alta varianza tra run. Dopo la suite di verificatori deterministici
+  qui sotto, il miglior singolo run arriva a **~9-11 delle 18 classi confermate da un
+  oracolo nel codice** (un salto reale, non la parità, vedi i caveat onesti).
 
 La metrica che conta per uno strumento di pentest è la **copertura**: quante
 vulnerabilità *reali* distinte emergono, prese come **unione su N run** (non il singolo
 run, dove domina la varianza). La direzione di ricerca è quindi esplorazione ampia più
 aggregazione, non inseguire una singola traiettoria riproducibile.
+
+### Le 18 classi, una per una (miglior run locale vs frontiera)
+
+Il riferimento di frontiera ha sfruttato **18 vulnerabilità distinte** (5 critical, 7
+high, 5 medium, 1 low). La tabella sotto è lo stato onesto, classe per classe, del 30B
+locale nel suo **miglior singolo run** finora. Legenda: ✅ confermata da un oracolo
+deterministico nel codice, 🟡 asserita dal modello (reale, ma senza oracolo, quindi varia
+run su run), 🔴 tentata ma non bucata, ⬜ non raggiunta.
+
+| # | Classe | Frontiera | Locale (miglior run) | Come viene giudicato il modello locale |
+|---|---|:---:|:---:|---|
+| V01 | SQLi bypass login | ✓ | ✅ | `injection_verify` (tautologia auth-bypass) |
+| V02 | SQLi UNION dump | ✓ | ✅* | `injection_verify` (iniettabile + colonne UNION; dump completo no) |
+| V03 | SQLi mirata, login come utente scelto | ✓ | ⬜ | non distinta da V01 |
+| V04 | JWT forgery `alg:none` | ✓ | 🔴 | `jwt_verify` gira ma non buca la variante JS (serve RS256→HS256) |
+| V05 | Mass assignment del ruolo | ✓ | ⬜ | nessun verificatore |
+| V06 | IDOR basket | ✓ | 🟡 | asserita, senza oracolo |
+| V07 | NoSQL mass-update | ✓ | 🟡 | `injection_verify` modalità NoSQL, parziale |
+| V08 | XSS **stored** nelle review | ✓ | ⬜ | solo riflesso/DOM, non lo stored |
+| V09 | Path traversal null-byte | ✓ | ✅ | `traversal_verify` |
+| V10 | Documento confidenziale `/ftp` | ✓ | ✅ | `exposure_verify` |
+| V11 | Directory `/encryptionkeys` | ✓ | ✅ | `exposure_verify` |
+| V12 | Hash MD5 deboli | ✓ | ⬜ | serve prima il dump V02, poi l'analisi hash |
+| V13 | Open redirect | ✓ | ✅ | `redirect_verify` |
+| V14 | Errori SQL verbosi | ✓ | 🟡 | `injection_verify` error-based (incostante) |
+| V15 | Endpoint `/metrics` | ✓ | ✅ | `exposure_verify` |
+| V16 | Quantità negativa (business logic) | ✓ | 🟡 | asserita, senza oracolo |
+| V17 | CSP assente | ✓ | ✅ | `csp_verify` |
+| V18 | CAPTCHA nel response | ✓ | ✅ | `captcha_verify` |
+|  | XSS riflesso / DOM | ✓ | ✅ | `xss_verify` (oracolo di rendering) |
+
+**Lettura onesta.** Confermate da oracolo: ~10. Asserite in aggiunta (unione su run):
++4-5. Genuinamente non raggiunte: **4** (V04 forgery JWT, V05 mass assignment, V08 stored
+XSS, V12 hash deboli). Due divari dominano e nessuno è chiuso: (1) **profondità**, gli
+oracoli provano che una classe *esiste* ma non costruiscono la catena di sfruttamento
+completa che fa la frontiera (dump dei 25 utenti, forgery, crack degli hash, concatenare);
+(2) **rumore**, anche dove la copertura è buona il conteggio è sporco (negativi registrati
+come finding, duplicati). E il confronto **non è a parità di harness**: la frontiera è
+stata guidata in sessione diretta (shell completa), il modello locale dentro il loop
+planner/worker vincolato di Artemis, quindi il divario è modello *più* harness.
 
 Metodologia completa e risultati onesti in [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
@@ -144,6 +186,15 @@ Ogni voce è una garanzia strutturale nel codice oppure una leva misurata:
 - **`xss_verify`** (motore): un oracolo di rendering deterministico (Chromium headless)
   che spara payload canonici non-`<script>` e riporta in modo deterministico se uno viene
   eseguito nel DOM, togliendo la tecnica dalle mani del modello debole.
+- **Suite di verificatori deterministici su un'interfaccia `VulnClass`**: una famiglia di
+  oracoli nel codice (`exposure_verify` per file/dir/metrics esposti, `csp_verify` per la
+  CSP assente, `injection_verify` per il probing SQL/NoSQL, `captcha_verify`,
+  `traversal_verify` per il path traversal null-byte, `jwt_verify`) che restituiscono
+  ciascuno un verdetto deterministico invece di fidarsi di quanto il modello debole
+  asserisce. È ciò che porta il miglior run da ~2-6 a ~9-11 delle 18 classi (vedi la
+  tabella sopra).
+- **Terminatore del worker senza progresso**: `record_fact` rileva un worker che non fa
+  nuovo progresso su un intent e lo libera, invece di bruciare il budget sul posto.
 - **Espansione deterministica delle intent**: il codice espande la superficie scoperta in
   intent concrete e autocontenute (URL esatta più il verificatore esatto da chiamare),
   così la copertura non dipende più dal caso che il planner generi l'intent giusto.
