@@ -976,12 +976,12 @@ func (s *Server) editTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(req.Description) == "" {
-		writeErr(w, 400, "描述不能为空")
+		writeErr(w, 400, "La descrizione non può essere vuota")
 		return
 	}
 	if req.LLMProfileID != nil {
 		if _, ok := s.loadProfileConfig(*req.LLMProfileID); !ok {
-			writeErr(w, 400, "所选 LLM 配置不存在或未设置 API Key")
+			writeErr(w, 400, "La configurazione LLM selezionata non esiste o non ha l'API Key impostata")
 			return
 		}
 	}
@@ -1129,7 +1129,7 @@ func (s *Server) testLLM(w http.ResponseWriter, r *http.Request) {
 		s.cfgMu.Unlock()
 	}
 	if cfg.APIKey == "" {
-		writeJSON(w, 200, map[string]any{"ok": false, "error": "未提供 API Key"})
+		writeJSON(w, 200, map[string]any{"ok": false, "error": "API Key non fornita"})
 		return
 	}
 	lat, err := agent.TestConnection(r.Context(), cfg)
@@ -1156,13 +1156,13 @@ func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if strings.TrimSpace(req.Description) == "" {
-		req.Description = "未命名任务"
+		req.Description = "Task senza nome"
 	}
 	// validate the pinned profile up front (must exist + be usable), so a bad id fails
 	// task creation instead of silently falling back to the active profile at run time.
 	if req.LLMProfileID != nil {
 		if _, ok := s.loadProfileConfig(*req.LLMProfileID); !ok {
-			writeErr(w, 400, "所选 LLM 配置不存在或未设置 API Key")
+			writeErr(w, 400, "La configurazione LLM selezionata non esiste o non ha l'API Key impostata")
 			return
 		}
 	}
@@ -1846,7 +1846,7 @@ func (s *Server) settingsPayload() map[string]any {
 func (s *Server) pgDetectPython(w http.ResponseWriter, r *http.Request) {
 	p := detectPython()
 	if p == "" {
-		writeErr(w, 404, "未检测到 python(python3/python 均不在 PATH)")
+		writeErr(w, 404, "python non rilevato (python3/python non sono nel PATH)")
 		return
 	}
 	if err := s.m.pg.SetSetting(settingPythonInterp, p); err != nil {
@@ -1983,12 +1983,12 @@ func (s *Server) testGlobalProxy(w http.ResponseWriter, r *http.Request) {
 		raw = s.m.GlobalProxy()
 	}
 	if raw == "" {
-		writeJSON(w, 200, map[string]any{"ok": false, "error": "未配置代理"})
+		writeJSON(w, 200, map[string]any{"ok": false, "error": "proxy non configurato"})
 		return
 	}
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https" && u.Scheme != "socks5") {
-		writeJSON(w, 200, map[string]any{"ok": false, "error": "代理地址非法（需 http/https/socks5）"})
+		writeJSON(w, 200, map[string]any{"ok": false, "error": "indirizzo proxy non valido (richiede http/https/socks5)"})
 		return
 	}
 	tr := http.DefaultTransport.(*http.Transport).Clone()
@@ -2014,7 +2014,7 @@ func (s *Server) testGlobalProxy(w http.ResponseWriter, r *http.Request) {
 		}
 		ip := strings.TrimSpace(string(raw))
 		if net.ParseIP(ip) == nil {
-			lastErr = "返回非 IP 响应"
+			lastErr = "la risposta non è un IP"
 			continue
 		}
 		writeJSON(w, 200, map[string]any{
@@ -2025,7 +2025,7 @@ func (s *Server) testGlobalProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if lastErr == "" {
-		lastErr = "无可用检测节点"
+		lastErr = "nessun nodo di rilevamento disponibile"
 	}
 	writeJSON(w, 200, map[string]any{"ok": false, "error": lastErr})
 }
@@ -2067,7 +2067,7 @@ func (s *Server) testWebSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(results) == 0 {
-		writeJSON(w, 200, map[string]any{"ok": false, "error": "搜索返回 0 条结果（可能被限流或代理不通）", "backend": backend})
+		writeJSON(w, 200, map[string]any{"ok": false, "error": "la ricerca ha restituito 0 risultati (possibile throttling o proxy non raggiungibile)", "backend": backend})
 		return
 	}
 	writeJSON(w, 200, map[string]any{"ok": true, "count": len(results), "backend": backend})
@@ -2179,11 +2179,11 @@ func (s *Server) fallbackChat(t *Task, msg string) string {
 	case strings.HasPrefix(m, "意图") || strings.HasPrefix(lower, "intent"):
 		text := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(m, "意图"), "intent"))
 		_, _ = t.Store.AddIntent(map[string]any{"summary": text}, 9, nil, "human")
-		return "已注入一条高优先级意图：" + text
+		return "Iniettata un'intent ad alta priorità: " + text
 	case strings.HasPrefix(m, "提示") || strings.HasPrefix(lower, "hint"):
 		text := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(m, "提示"), "hint"))
 		_, _ = t.Store.AddNode(db.KindHint, map[string]any{"text": text}, 0, "active", "human", nil)
-		return "已记录提示，规划者下次会读到：" + text
+		return "Suggerimento registrato, il planner lo leggerà la prossima volta: " + text
 	default:
 		assetCounts, _ := s.m.Assets().CountsByType()
 		assets := 0
@@ -2192,7 +2192,7 @@ func (s *Server) fallbackChat(t *Task, msg string) string {
 		}
 		fnd, _ := t.Store.ListByKind(db.KindFinding, 1000)
 		fr, _ := t.Store.Frontier(1000)
-		return fmt.Sprintf("（规则模式，未配置 LLM）当前态势：资产 %d，待领意图 %d，确认发现 %d。\n可用指令：以\"意图 ...\"注入意图，\"提示 ...\"给规划者提示。", assets, len(fr), len(fnd))
+		return fmt.Sprintf("(modalità regole, LLM non configurato) situazione attuale: asset %d, intent da assegnare %d, finding confermati %d.\nComandi disponibili: con \"意图 ...\" inietti un'intent, \"提示 ...\" dai un suggerimento al planner.", assets, len(fr), len(fnd))
 	}
 }
 

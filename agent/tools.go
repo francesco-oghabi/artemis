@@ -471,6 +471,7 @@ var intentClassKeywords = []struct{ pat, canon string }{
 	{"command injection", "rce"}, {"remote code execution", "rce"}, {"rce", "rce"},
 	{"nosql", "nosqli"},
 	{"mass assignment", "massassign"},
+	{"business logic", "buslogic"}, {"negative quantity", "buslogic"},
 	{"authentication bypass", "authbypass"}, {"auth bypass", "authbypass"}, {"login bypass", "authbypass"},
 	{"privilege escalation", "privesc"}, {"broken access", "accesscontrol"},
 	{"open redirect", "openredirect"}, {"jwt", "jwt"},

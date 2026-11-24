@@ -37,15 +37,18 @@ Shop (critical through low) with real exploitation: UNION dumps, JWT `alg:none` 
 mass assignment, NoSQL, path traversal, and more. Early local-model runs landed at
 roughly **2 to 6** vulnerabilities with high variance, concentrated in the "obvious
 injection / IDOR / XSS" tier, without chains or exfiltration. After the deterministic
-verifier suite (below), the best single run reaches **~9 to 11 of the 18 classes
-confirmed by an in-code oracle**. This is a real jump, not parity: see "Where it stands
-now".
+verifier suite (below), extended to real UNION dumps, MD5 cracking and JWT forgery, plus
+the leaked-tool-call salvage fix, oracle-confirmed coverage reaches **~16 of the 18
+classes as a union over runs**, and a single coherent run now confirms **14 classes at
+once**. This is a real jump, not parity: see "Where it stands now".
 
-The gap decomposes into two parts:
+The gap used to decompose into two parts:
 
 - **breadth** (classes never attempted but detectable by a 30B): prompt- and
-  surface-addressable;
-- **depth** (exploitation and chains): closer to the model's capability ceiling.
+  surface-addressable, now largely covered;
+- **depth** (exploitation and chains): the local model now dumps, cracks and forges
+  (V02/V12/V04), so depth is largely closed too; what is left is one atypical class (V08)
+  and residual noise.
 
 ## The central pattern
 
@@ -84,7 +87,10 @@ cures:
 | Semantic KB retrieval (pgvector + Ollama embeddings) | code/runtime | replaces keyword lookup that returned nothing for NL queries | keyword hits 0 to semantic hits; SQLi/XSS false-negative "myths" flipped to real findings |
 | `endpoint_discover` | code | mines real endpoints from the captured JS bundle, zero hardcoding | reached the correct endpoint; noise collapsed; new real findings (exposed `.env`, business logic) |
 | `xss_verify` oracle | code | headless-Chromium rendering oracle, deterministic DOM-execution verdict | reflected XSS confirmed with oracle evidence |
-| Deterministic verifier suite (`VulnClass`) | code | in-code oracles `exposure_verify` / `csp_verify` / `injection_verify` / `captcha_verify` / `traversal_verify` / `jwt_verify`, each a deterministic verdict | oracle-confirmed classes in the best run from ~2-6 to ~9-11 of 18 |
+| Deterministic verifier suite (`VulnClass`) | code | in-code oracles `exposure_verify` / `csp_verify` / `injection_verify` / `captcha_verify` / `traversal_verify` / `jwt_verify` / `idor_verify` / `buslogic_verify` / `massassign_verify` / `stored_xss_verify`, each a deterministic verdict | oracle-confirmed classes from ~2-6 to ~16 of 18 |
+| UNION dump + `hash_crack` | code | `injection_verify` dumps the 25 `email:hash` rows; `hash_crack` cracks unsalted MD5 offline (built-in + user wordlists) | V02 closed beyond injectability; V12 closed (`admin123` recovered) |
+| `jwt_verify` forgery | code | `alg:none` on tight gates with a corrupted-signature baseline, plus RS256→HS256 key confusion with the exposed pubkey | V04 confirmed (was a false "unbroken" from a loose oracle) |
+| Leaked tool-call salvage | code | recovers weak-model tool calls that arrive as text `<function=...>` and the gateway parser dropped | at harness parity recovered 13 calls in one run (incl. the lost `jwt_verify`); stabilizes variance |
 | No-progress worker terminator | code | `record_fact` frees a worker that stops making new progress on an intent | runaway intents no longer burn the budget in place |
 | Deterministic intent expansion | code | expands the discovered surface into concrete self-contained intents | XSS/redirect coverage no longer depends on planner luck |
 | Frontier drain + per-intent budget | code | executes queued breadth before closing; frees runaway-intent workers | breadth executed and measured instead of orphaned |
@@ -97,33 +103,42 @@ alibi gone.
 
 ## Where it stands now
 
-After the deterministic verifier suite, the best single run on Juice Shop stands roughly
-as follows against the frontier's 18 classes. Legend: ✅ confirmed by an in-code oracle,
-🟡 asserted by the model (real, no oracle, varies run to run), 🔴 attempted but not broken,
-⬜ not reached.
+After the deterministic verifier suite, the UNION dump / hash-crack / JWT-forgery
+extensions and the leaked-tool-call salvage fix, coverage on Juice Shop stands roughly as
+follows against the frontier's 18 classes, as a union over runs. Legend: ✅ confirmed by an
+in-code oracle, 🟡 asserted by the model (real, no oracle, varies run to run), 🔴 attempted
+but not broken, ⬜ not reached.
 
-- **✅ oracle-confirmed (~10):** V01 SQLi login bypass, V02 SQLi UNION (injectable and
-  columns, full dump not done), V09 null-byte path traversal, V10 `/ftp`, V11
-  `/encryptionkeys`, V13 open redirect, V15 `/metrics`, V17 missing CSP, V18 CAPTCHA, plus
-  reflected/DOM XSS.
-- **🟡 asserted, no oracle (+4 to 5 across runs):** V03, V06 IDOR, V07 NoSQL, V14 verbose
-  SQL errors, V16 negative quantity.
-- **🔴/⬜ genuinely not reached (4):** V04 JWT forgery (the oracle runs but does not break
-  the Juice Shop variant; needs the RS256→HS256 confusion), V05 mass assignment (no
-  verifier), V08 stored XSS (reflected/DOM only), V12 weak MD5 hashes (needs the V02 dump
-  first).
+- **✅ oracle-confirmed (~16):** V01 SQLi login bypass, V02 SQLi UNION (real dump of 25
+  `email:hash` rows), V04 JWT forgery (`alg:none` + RS256→HS256), V05 mass assignment, V06
+  IDOR, V09 null-byte path traversal, V10 `/ftp`, V11 `/encryptionkeys`, V12 weak MD5
+  (cracked, `admin123` recovered), V13 open redirect, V15 `/metrics`, V16 negative quantity,
+  V17 missing CSP, V18 CAPTCHA, plus reflected/DOM XSS.
+- **🟡 asserted, no oracle:** V03 (not distinguished from V01), V07 NoSQL (partial), V14
+  verbose SQL errors (inconsistent).
+- **🔴 genuinely not reached (1):** V08 stored XSS. The generic store-then-render oracle
+  (`stored_xss_verify`) runs but returns an honest negative: Juice Shop's persistent vector
+  is atypical (not a generic review/comment), so it needs a non-generic vector for this
+  target.
 
-Trajectory of oracle-confirmed coverage across the verifier work: 2 → 5 → ~9 → ~10-11.
+Trajectory of oracle-confirmed coverage across the work: 2 → 5 → ~9 → ~10-11 → ~12 (V06/V16)
+→ ~13 (V05) → ~15 (UNION dump V02 + hashes V12) → ~16 (V04 JWT). A further note on density:
+the salvage fix produced the first single coherent run with 14 classes confirmed at once
+(task 69), rather than a union assembled across separate runs, because real tool calls
+(including the `jwt_verify` for V04) no longer disappear as unparsed text.
 
-Two gaps remain open and neither is closed by this work:
+One gap is closed and two remain:
 
-1. **Depth.** The oracles prove a class *exists*; they do not build the full exploitation
-   chain the frontier does (dump 25 users, forge, crack hashes, chain). This is closest to
-   the model's capability ceiling.
-2. **Noise (readability).** Even where coverage is good the count is dirty: negatives
-   recorded as findings plus duplicates (a representative best run carried roughly half its
-   findings as noise). Oracles do not suppress this; it needs a code-level guardrail and is
-   the current priority.
+1. **Depth: closed.** The oracles no longer only prove a class *exists*. The local model
+   dumps the 25 users (V02), cracks the unsalted MD5 hashes (V12: `admin123` recovered from
+   the dump with the built-in dictionary; larger user dictionaries crack more), and forges
+   JWTs (V04).
+2. **V08 stored XSS.** The one genuinely unreached class: oracle ready, honest negative on
+   Juice Shop's atypical persistent vector.
+3. **Noise (readability).** The count is cleaner than before (noise fell sharply with the
+   IDOR/business-logic work and is no longer the urgent bottleneck), but negatives recorded
+   as findings and duplicates are not fully suppressed; the code-level guardrail remains a
+   useful safety net.
 
 And the comparison is **not at harness parity**: the frontier model was driven in a direct
 session with a full shell, the local model inside Artemis's constrained planner/worker
@@ -133,10 +148,12 @@ same target.
 
 ## Honest limitations
 
-- The local model still trails the frontier's 18, in breadth and especially in depth. The
-  best-run figure (~9-11 oracle-confirmed) is not parity, and it is a single best run, not a
-  stable average. This is ongoing research, not a "we beat the frontier" claim.
-- Recognition variance is **reduced, not eliminated**. Coverage remains a union over runs.
+- The local model still trails the frontier's 18 in robustness and consistency. The
+  ~16-of-18 figure is a union over runs, not a stable average, and it is not parity. This is
+  ongoing research, not a "we beat the frontier" claim.
+- One class (V08 stored XSS) is genuinely unreached on this target.
+- Recognition variance is **reduced** (the salvage fix removed a class of parser-miss false
+  negatives) **but not eliminated**. Coverage remains a union over runs.
 - Single-run numbers are noisy; every lever's effect is read on aggregated runs, not a
   one-to-one comparison.
 - Some engine source comments remain in the upstream's original language; model-facing

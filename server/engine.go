@@ -204,13 +204,13 @@ func (e *Engine) unregisterWork(intentID int64) {
 // re-plans — no kill. Errors if no work is currently running that intent.
 func (e *Engine) SteerWork(intentID int64, msg string) error {
 	if strings.TrimSpace(msg) == "" {
-		return fmt.Errorf("纠偏消息不能为空")
+		return fmt.Errorf("il messaggio di correzione non può essere vuoto")
 	}
 	e.workMu.Lock()
 	running := e.workCancel[intentID] != nil
 	e.workMu.Unlock()
 	if !running {
-		return fmt.Errorf("意图 %d 当前没有运行中的 work（可能已结束或未被领取）", intentID)
+		return fmt.Errorf("l'intent %d non ha attualmente alcun work in esecuzione (potrebbe essere terminato o non ancora assegnato)", intentID)
 	}
 	e.steerMu.Lock()
 	e.steerBox[intentID] = append(e.steerBox[intentID], msg)
@@ -275,7 +275,7 @@ func (e *Engine) KillWork(intentID int64) error {
 	c := e.workCancel[intentID]
 	e.workMu.Unlock()
 	if c == nil {
-		return fmt.Errorf("意图 %d 当前没有运行中的 work（可能已结束或未被领取）", intentID)
+		return fmt.Errorf("l'intent %d non ha attualmente alcun work in esecuzione (potrebbe essere terminato o non ancora assegnato)", intentID)
 	}
 	c()
 	return nil
@@ -505,6 +505,14 @@ func expandClassLabel(name string) string {
 		return "path traversal / null-byte su file statici"
 	case "jwt":
 		return "JWT forgery (alg:none / chiave debole)"
+	case "idor":
+		return "IDOR / autorizzazione a livello di oggetto (cross-read a due utenti)"
+	case "buslogic":
+		return "business logic: quantità negativa nel carrello"
+	case "massassign":
+		return "mass assignment di un campo privilegiato (ruolo/admin)"
+	case "storedxss":
+		return "XSS stored/persistente (store-then-render)"
 	default:
 		return "classe " + name
 	}

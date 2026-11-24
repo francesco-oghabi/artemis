@@ -125,8 +125,11 @@ qui, il limite è il modello, non l'impianto.
 - **Modello a peso aperto locale.** Un modello coder a peso aperto da ~30B servito in
   locale su una singola GPU consumer via Ollama. I primi run si fermavano a circa 2-6
   vulnerabilità con alta varianza tra run. Dopo la suite di verificatori deterministici
-  qui sotto, il miglior singolo run arriva a **~9-11 delle 18 classi confermate da un
-  oracolo nel codice** (un salto reale, non la parità, vedi i caveat onesti).
+  qui sotto (ora estesa a dump UNION reali, cracking MD5 e forgery JWT) più il fix di
+  recupero delle tool-call leakate, la copertura confermata da oracolo arriva a **~16 delle
+  18 classi come unione su run**, e un singolo run coerente ne conferma ora **14 insieme**
+  (un salto reale, non la parità, vedi i caveat onesti). L'unica classe genuinamente non
+  raggiunta è V08 stored XSS.
 
 La metrica che conta per uno strumento di pentest è la **copertura**: quante
 vulnerabilità *reali* distinte emergono, prese come **unione su N run** (non il singolo
@@ -137,41 +140,45 @@ aggregazione, non inseguire una singola traiettoria riproducibile.
 
 Il riferimento di frontiera ha sfruttato **18 vulnerabilità distinte** (5 critical, 7
 high, 5 medium, 1 low). La tabella sotto è lo stato onesto, classe per classe, del 30B
-locale nel suo **miglior singolo run** finora. Legenda: ✅ confermata da un oracolo
-deterministico nel codice, 🟡 asserita dal modello (reale, ma senza oracolo, quindi varia
-run su run), 🔴 tentata ma non bucata, ⬜ non raggiunta.
+locale, preso come **unione su run** (un singolo run coerente ne conferma ora 14 insieme).
+Legenda: ✅ confermata da un oracolo deterministico nel codice, 🟡 asserita dal modello
+(reale, ma senza oracolo, quindi varia run su run), 🔴 tentata ma non bucata, ⬜ non
+raggiunta.
 
-| # | Classe | Frontiera | Locale (miglior run) | Come viene giudicato il modello locale |
+| # | Classe | Frontiera | Locale | Come viene giudicato il modello locale |
 |---|---|:---:|:---:|---|
 | V01 | SQLi bypass login | ✓ | ✅ | `injection_verify` (tautologia auth-bypass) |
-| V02 | SQLi UNION dump | ✓ | ✅* | `injection_verify` (iniettabile + colonne UNION; dump completo no) |
+| V02 | SQLi UNION dump | ✓ | ✅ | `injection_verify` (dump UNION reale: 25 righe `email:hash` da Users) |
 | V03 | SQLi mirata, login come utente scelto | ✓ | ⬜ | non distinta da V01 |
-| V04 | JWT forgery `alg:none` | ✓ | 🔴 | `jwt_verify` gira ma non buca la variante JS (serve RS256→HS256) |
-| V05 | Mass assignment del ruolo | ✓ | ⬜ | nessun verificatore |
-| V06 | IDOR basket | ✓ | 🟡 | asserita, senza oracolo |
+| V04 | JWT forgery `alg:none` | ✓ | ✅ | `jwt_verify` (`alg:none` su gate stretti + baseline a firma corrotta, più confusione RS256→HS256 con la pubkey esposta) |
+| V05 | Mass assignment del ruolo | ✓ | ✅ | `massassign_verify` (registrazione differenziale, `role=admin` accettato) |
+| V06 | IDOR basket | ✓ | ✅ | `idor_verify` (cross-read a due account, differenziale owner-id) |
 | V07 | NoSQL mass-update | ✓ | 🟡 | `injection_verify` modalità NoSQL, parziale |
-| V08 | XSS **stored** nelle review | ✓ | ⬜ | solo riflesso/DOM, non lo stored |
+| V08 | XSS **stored** nelle review | ✓ | 🔴 | `stored_xss_verify` pronto, negativo onesto (il vettore persistente di Juice Shop è atipico) |
 | V09 | Path traversal null-byte | ✓ | ✅ | `traversal_verify` |
 | V10 | Documento confidenziale `/ftp` | ✓ | ✅ | `exposure_verify` |
 | V11 | Directory `/encryptionkeys` | ✓ | ✅ | `exposure_verify` |
-| V12 | Hash MD5 deboli | ✓ | ⬜ | serve prima il dump V02, poi l'analisi hash |
+| V12 | Hash MD5 deboli | ✓ | ✅ | dump V02 + `hash_crack` (25 MD5 non salati; `admin123` recuperata col dizionario built-in) |
 | V13 | Open redirect | ✓ | ✅ | `redirect_verify` |
 | V14 | Errori SQL verbosi | ✓ | 🟡 | `injection_verify` error-based (incostante) |
 | V15 | Endpoint `/metrics` | ✓ | ✅ | `exposure_verify` |
-| V16 | Quantità negativa (business logic) | ✓ | 🟡 | asserita, senza oracolo |
+| V16 | Quantità negativa (business logic) | ✓ | ✅ | `buslogic_verify` (baseline positiva vs quantità negativa persistita) |
 | V17 | CSP assente | ✓ | ✅ | `csp_verify` |
 | V18 | CAPTCHA nel response | ✓ | ✅ | `captcha_verify` |
 |  | XSS riflesso / DOM | ✓ | ✅ | `xss_verify` (oracolo di rendering) |
 
-**Lettura onesta.** Confermate da oracolo: ~10. Asserite in aggiunta (unione su run):
-+4-5. Genuinamente non raggiunte: **4** (V04 forgery JWT, V05 mass assignment, V08 stored
-XSS, V12 hash deboli). Due divari dominano e nessuno è chiuso: (1) **profondità**, gli
-oracoli provano che una classe *esiste* ma non costruiscono la catena di sfruttamento
-completa che fa la frontiera (dump dei 25 utenti, forgery, crack degli hash, concatenare);
-(2) **rumore**, anche dove la copertura è buona il conteggio è sporco (negativi registrati
-come finding, duplicati). E il confronto **non è a parità di harness**: la frontiera è
+**Lettura onesta.** Confermate da oracolo: **~16** (unione su run). Asserite in aggiunta,
+senza oracolo: V03, V07, V14. Genuinamente non raggiunta: **1** (V08 stored XSS: l'oracolo
+è pronto ma il vettore persistente di Juice Shop è atipico, quindi restituisce un negativo
+onesto). Il divario di **profondità** è ora in larga parte chiuso: il modello locale fa il
+dump dei 25 utenti (V02), cracca gli hash MD5 non salati (V12) e forgia i token JWT (V04),
+invece di limitarsi a provare che una classe esiste. Restano: il **rumore** (negativi
+registrati come finding e duplicati; molto più basso dopo il lavoro su IDOR/business-logic
+ma non eliminato) e il fatto che il confronto **non è a parità di harness**, la frontiera è
 stata guidata in sessione diretta (shell completa), il modello locale dentro il loop
-planner/worker vincolato di Artemis, quindi il divario è modello *più* harness.
+planner/worker vincolato di Artemis, quindi il divario è modello *più* harness. Isolare il
+solo divario di modello richiede il terzo dato ancora mancante: la frontiera guidata
+*dentro* Artemis.
 
 Metodologia completa e risultati onesti in [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
@@ -188,11 +195,22 @@ Ogni voce è una garanzia strutturale nel codice oppure una leva misurata:
   eseguito nel DOM, togliendo la tecnica dalle mani del modello debole.
 - **Suite di verificatori deterministici su un'interfaccia `VulnClass`**: una famiglia di
   oracoli nel codice (`exposure_verify` per file/dir/metrics esposti, `csp_verify` per la
-  CSP assente, `injection_verify` per il probing SQL/NoSQL, `captcha_verify`,
-  `traversal_verify` per il path traversal null-byte, `jwt_verify`) che restituiscono
-  ciascuno un verdetto deterministico invece di fidarsi di quanto il modello debole
-  asserisce. È ciò che porta il miglior run da ~2-6 a ~9-11 delle 18 classi (vedi la
+  CSP assente, `injection_verify` per il probing SQL/NoSQL più un dump UNION reale,
+  `captcha_verify`, `traversal_verify` per il path traversal null-byte, `jwt_verify`,
+  `idor_verify`, `buslogic_verify`, `massassign_verify`, `stored_xss_verify`) che
+  restituiscono ciascuno un verdetto deterministico invece di fidarsi di quanto il modello
+  debole asserisce. È ciò che porta la copertura da ~2-6 a ~16 delle 18 classi (vedi la
   tabella sopra).
+- **Profondità, non solo presenza**: `injection_verify` fa un dump UNION reale (25 righe
+  `email:hash` da Users), `hash_crack` cracca offline gli hash MD5 non salati (dizionario
+  built-in più eventuali `*.txt` dell'utente in `data/wordlists/`, recuperando `admin123`),
+  e `jwt_verify` forgia i token (`alg:none` più confusione di chiave RS256→HS256), così il
+  modello locale concatena dump → crack → forgery invece di limitarsi a provare che una
+  classe esiste.
+- **Recupero delle tool-call leakate**: alcune tool-call del modello debole arrivano come
+  testo (`<function=...>`) che il parser del gateway scartava in silenzio. L'harness le
+  recupera e le dispaccia, trasformando falsi negativi da parser-miss in conferme (tra cui
+  V04) e stabilizzando la varianza run-su-run senza attendere un fix del serving upstream.
 - **Terminatore del worker senza progresso**: `record_fact` rileva un worker che non fa
   nuovo progresso su un intent e lo libera, invece di bruciare il budget sul posto.
 - **Espansione deterministica delle intent**: il codice espande la superficie scoperta in
@@ -210,8 +228,10 @@ Ogni voce è una garanzia strutturale nel codice oppure una leva misurata:
   32k non viene riassunta di continuo e avvelenata.
 - **Recupero semantico della knowledge base** (pgvector più embeddings Ollama locali), al
   posto di una ricerca keyword che non restituiva nulla per query in linguaggio naturale.
-- **Contesto model-facing tutto in inglese** e UI EN/IT/ZH (default inglese), così un
-  contesto in lingua mista smette di confondere un modello debole.
+- **Contesto model-facing tutto in inglese** (system prompt, messaggi iniettati,
+  descrizioni e risultati dei tool), così un contesto in lingua mista smette di confondere
+  un modello debole. Le stringhe per l'operatore sono localizzate a parte (UI e messaggi
+  backend in italiano, con EN/ZH anche nella UI web).
 - **Config di serving a peso aperto versionata** sotto [`deploy/ollama/`](deploy/ollama/)
   (finestra di contesto, campionamento, parallelismo, con le motivazioni scritte).
 

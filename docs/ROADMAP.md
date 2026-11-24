@@ -7,17 +7,21 @@ grouped by theme, not hard-dated.
 
 ## Coverage toward frontier parity
 
-- **Deterministic verifiers for more classes.** The rendering oracle (`xss_verify`) and
-  endpoint discovery (`endpoint_discover`) proved the pattern: take a technique out of the
-  weak model's hands and make the verdict deterministic. A first suite now ships over a
-  `VulnClass` interface, `exposure_verify` (exposed files/directories/metrics),
-  `csp_verify` (missing CSP), `injection_verify` (SQL/NoSQL probing), `captcha_verify`,
-  `traversal_verify` (null-byte path traversal) and `jwt_verify`, lifting the best run to
-  ~9-11 of the 18 classes. Still only *asserted* and needing their own oracle: V06 IDOR and
-  V16 negative quantity. Not yet reached at all: V05 mass assignment (no verifier) and V08
-  stored XSS (plant + render, reusing `xss_verify`). V04 JWT forgery has an oracle that
-  does not break the Juice Shop variant; it needs the RS256→HS256 key-confusion technique
-  (sign HS256 with the public key), which is less generic.
+- **Deterministic verifiers.** The rendering oracle (`xss_verify`) and endpoint discovery
+  (`endpoint_discover`) proved the pattern: take a technique out of the weak model's hands
+  and make the verdict deterministic. The suite over a `VulnClass` interface now covers
+  `exposure_verify`, `csp_verify`, `injection_verify` (SQL/NoSQL probing **plus a real
+  UNION dump**), `captcha_verify`, `traversal_verify`, `jwt_verify` (now breaking V04 via
+  `alg:none` on tight gates plus RS256→HS256 key confusion), `idor_verify` (V06),
+  `buslogic_verify` (V16), `massassign_verify` (V05) and `stored_xss_verify` (V08), plus
+  the offline `hash_crack` (V12) chained off the dump. This lifts oracle-confirmed coverage
+  to **~16 of the 18 classes**. The one class still genuinely unreached is **V08 stored
+  XSS**: the generic store-then-render oracle returns an honest negative because Juice
+  Shop's persistent vector is atypical, so it needs a non-generic vector for this target.
+  Remaining asserted-only (needing a tighter oracle or distinction): V03, V07 NoSQL, V14.
+- **`hash_crack` beyond MD5.** The offline cracker handles unsalted MD5 today; add further
+  algorithms (bcrypt/SHA families, salts) and support larger user wordlists under
+  `data/wordlists/`.
 - **Breadth that gets executed.** Finish tuning the frontier drain and per-intent budget
   so the planner's breadth is actually executed before a run closes, and scale throughput
   with multiple workers.
@@ -29,11 +33,11 @@ grouped by theme, not hard-dated.
 
 - **Negative-as-finding guardrail (code).** A filter that refuses, or demotes to a fact,
   "findings" that are negative observations ("not vulnerable to X"), which otherwise
-  inflate the count. To be added carefully so it does not hide real analysis. This is the
-  **current bottleneck**: the oracles raised coverage but the finding count is still dirty
-  (negatives recorded as findings plus duplicates make up a large share of a run), and the
-  oracles do not suppress it because the weak model ignores the "negative, record a fact"
-  rule. It needs a code-level guardrail.
+  inflate the count. To be added carefully so it does not hide real analysis. Noise fell
+  sharply with the IDOR/business-logic work, so this is **no longer the urgent bottleneck**
+  but remains a useful safety net: the oracles do not suppress leftover negatives recorded
+  as findings and duplicates, because the weak model ignores the "negative, record a fact"
+  rule.
 - **"Already-done" overview + anti-contamination.** A synthetic view of classes already
   tested / confirmed / excluded, distinguishing a tested-and-blocked result with concrete
   proof from an unproven generalization, so a hallucinated belief cannot suppress a whole
@@ -53,7 +57,9 @@ grouped by theme, not hard-dated.
   latency cost inside an agentic loop.
 - **Reproducible measurement harness.** Keep the seed/temperature findings as measurement
   tools (A/B on single calls), while treating per-run reproducibility as out of reach and
-  measuring on aggregated runs.
+  measuring on aggregated runs. The leaked-tool-call salvage already removed one class of
+  spurious variance (real calls arriving as unparsed `<function=...>` text and being
+  dropped); watch for other parser-level losses of the same kind.
 
 ## Documentation and project
 

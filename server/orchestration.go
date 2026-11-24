@@ -146,11 +146,11 @@ func (s *Server) delegateToTask(ctx context.Context, in json.RawMessage, pick fu
 	}
 	_ = json.Unmarshal(in, &head)
 	if strings.TrimSpace(head.TaskID) == "" {
-		return actool.Errorf("task_id 为必填"), nil
+		return actool.Errorf("task_id è obbligatorio"), nil
 	}
 	t, ok := s.m.Task(head.TaskID)
 	if !ok {
-		return actool.Errorf("task 不存在: " + head.TaskID), nil
+		return actool.Errorf("task non trovato: " + head.TaskID), nil
 	}
 	var m map[string]json.RawMessage
 	_ = json.Unmarshal(in, &m)
@@ -248,10 +248,10 @@ func (s *Server) toolSpawnTask() actool.CoreTool {
 			}
 			_ = json.Unmarshal(in, &a)
 			if strings.TrimSpace(a.Description) == "" {
-				a.Description = "未命名任务"
+				a.Description = "Task senza nome"
 			}
 			if strings.TrimSpace(a.Goal) == "" {
-				return actool.Errorf("goal 为必填"), nil
+				return actool.Errorf("goal è obbligatorio"), nil
 			}
 			if a.TimeoutSeconds < 0 {
 				a.TimeoutSeconds = 0
@@ -260,7 +260,7 @@ func (s *Server) toolSpawnTask() actool.CoreTool {
 			var pin *int64
 			if id := parseProfileID(a.LLMProfileID); id > 0 {
 				if _, ok := s.loadProfileConfig(id); !ok {
-					return actool.Errorf(fmt.Sprintf("LLM 配置 #%d 不存在或未设置 API Key", id)), nil
+					return actool.Errorf(fmt.Sprintf("configurazione LLM #%d non trovata o API Key non impostata", id)), nil
 				}
 				pin = &id
 			} else if a.ParentRef != "" {
@@ -294,7 +294,7 @@ func (s *Server) toolPauseTask() actool.CoreTool {
 			}
 			_ = json.Unmarshal(in, &a)
 			if _, ok := s.m.Task(a.TaskID); !ok {
-				return actool.Errorf("task 不存在: " + a.TaskID), nil
+				return actool.Errorf("task non trovato: " + a.TaskID), nil
 			}
 			s.engine.Pause(a.TaskID)
 			return actool.Text("task paused: " + a.TaskID), nil
@@ -397,14 +397,14 @@ func (s *Server) seedOrchestrationTools() {
 	s.reseedAgentPrompt("mainagent", "prompt_exposure_findings_mainagent_v1", "记录暴露/信息泄露类发现 + 梳理时把已证实暴露落库")
 	s.reseedAgentPrompt("worker", "prompt_exposure_findings_worker_v1", "暴露/信息泄露类也记为发现")
 	s.reseedAgentPrompt("pentest", "prompt_exposure_findings_pentest_v1", "暴露/信息泄露类也记为发现")
-	// 参考 AntiFox 0.3.4–0.3.6 的自主性提示词改进（适配我们无 coverage 子系统的口径）：
+	// 参考 Artemis 0.3.4–0.3.6 的自主性提示词改进（适配我们无 coverage 子系统的口径）：
 	s.reseedAgentPrompt("planner", "prompt_zerointent_acceptance_v1", "0意图判据重写（两类正当理由）+ 量化验收核对（未达标禁止提前收官）")
 	s.reseedAgentPrompt("worker", "prompt_negfact_threshold_v1", "否定结论证据门槛：穷尽手段前一律标 inferred，别用轻率 observed 焊死方向")
 	// 就地记录复现过程：确认漏洞时在 report_finding 填结构化 reproduction（入口/前置/有序真实步骤/来源）。
 	s.reseedAgentPrompt("worker", "prompt_reproduction_recipe_v1", "report_finding 填结构化复现过程(就地记录,请求逐字真实)")
 	s.reseedAgentPrompt("pentest", "prompt_reproduction_recipe_pentest_v1", "report_finding 填结构化复现过程")
 	s.reseedAgentPrompt("mainagent", "prompt_reproduction_recipe_mainagent_v1", "report_finding 填结构化复现过程")
-	s.bumpWorkerRunSecondsTo1200() // worker 单轮墙钟 600→1200s（仅未被自定义的默认值；参考 AntiFox 0.3.3）
+	s.bumpWorkerRunSecondsTo1200() // worker 单轮墙钟 600→1200s（仅未被自定义的默认值；参考 Artemis 0.3.3）
 	// 注：pentest 的默认工具绑定无需迁移——BuiltinToolSeeds 在全新初始化时就把
 	// list_assets/insert_assets/report_finding/list_findings/list_companies 连同
 	// pentest 一起 seed 好了（项目尚无旧库，不做迁移）。

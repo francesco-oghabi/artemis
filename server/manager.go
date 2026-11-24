@@ -122,7 +122,7 @@ func (m *Manager) Workers() int {
 // SetWorkers persists the concurrent work-agent count. Values <=0 are rejected.
 func (m *Manager) SetWorkers(n int) error {
 	if n <= 0 {
-		return fmt.Errorf("workers 必须 >0")
+		return fmt.Errorf("workers deve essere >0")
 	}
 	return m.pg.SetSetting(settingWorkers, strconv.Itoa(n))
 }
@@ -162,7 +162,7 @@ func (m *Manager) SetGoalMetDrainCap(n int) error   { return m.setNonNegSetting(
 
 func (m *Manager) setNonNegSetting(key string, n int) error {
 	if n < 0 {
-		return fmt.Errorf("%s 必须 >=0", key)
+		return fmt.Errorf("%s deve essere >=0", key)
 	}
 	return m.pg.SetSetting(key, strconv.Itoa(n))
 }

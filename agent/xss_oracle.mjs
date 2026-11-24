@@ -18,7 +18,12 @@
 import pkg from '/usr/lib/node_modules/playwright/index.js';
 const { chromium } = pkg;
 
-const target = process.argv[2];
+// Render-only mode (stored XSS): `node xss_oracle.mjs --render-only "<url>"` just
+// renders the URL (which is expected to already contain server-stored content) and
+// reports whether ANY script executed (a planted payload calling window.__hit() or
+// alert()), without injecting anything itself.
+const renderOnly = process.argv[2] === '--render-only';
+const target = renderOnly ? process.argv[3] : process.argv[2];
 if (!target) {
   console.log(JSON.stringify({ error: 'missing url argument' }));
   process.exit(0);
@@ -73,6 +78,21 @@ let hit = null;
 let injectionPoints = [];
 
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
+if (renderOnly) {
+  // Just render the page and see if a server-stored payload executes. Longer wait:
+  // an SPA fetches and renders stored content (reviews/comments) asynchronously.
+  try {
+    const r = await render(browser, target, 4000);
+    const didFire = r.fired !== null || r.dialog !== null;
+    const tag = r.fired || (r.dialog ? 'alert:' + r.dialog : null);
+    console.log(JSON.stringify({ target, confirmed: didFire, hit: didFire ? { name: 'stored', tag, param: '(stored)', url: target } : null, results: [] }));
+  } catch (e) {
+    console.log(JSON.stringify({ target, confirmed: false, hit: null, results: [], error: String(e) }));
+  } finally {
+    await browser.close();
+  }
+  process.exit(0);
+}
 try {
   if (target.includes('FUZZ')) {
     injectionPoints = [{ param: '(fuzz)', build: (pl) => target.split('FUZZ').join(encodeURIComponent(pl)) }];
