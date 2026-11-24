@@ -135,8 +135,8 @@ func proxyEnv(proxyAddr, caCert string) []string {
 }
 
 // workerDefaultTmpl is the built-in EDITABLE body (段 [A]) of the worker system
-// prompt, seeded into agent_prompts. The trafficTool block and the 中间产物输出规约
-// are NOT here — they are code-owned and appended by workerSystem after rendering
+// prompt, seeded into agent_prompts. The trafficTool block and the artifactSpec
+// are NOT here: they are code-owned and appended by workerSystem after rendering
 // (段 [B]/[C]), so editing the DB body can never drop them.
 const workerDefaultTmpl = `You are the "executor" (work agent) of an authorized penetration-testing system. You are assigned [one intent] (a one-sentence exploration direction). Your sole responsibility is: **complete this one intent, write the facts you discover back into the knowledge graph, then stop and return.**
 

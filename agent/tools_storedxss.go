@@ -28,6 +28,15 @@ import (
 //     EXECUTES (alert/__hit), not merely if it is stored unescaped.
 //
 // Generic technique (endpoint/field wordlists, canonical payload), no target fact.
+//
+// Core invariant: STORED-UNESCAPED is necessary but NOT sufficient. A write endpoint
+// that echoes the payload back raw (e.g. GET .../reviews returns <iframe...> intact)
+// proves storage, not exploitability: if the display path output-encodes it (Angular/
+// React escape interpolated text by default) the stored tag renders as literal text
+// and never runs. Confirming on storage alone is the classic stored-XSS false positive
+// (even frontier models make it). This oracle therefore requires real EXECUTION in the
+// rendered DOM, never mere storage.
+//
 // Honest limit: some apps surface persisted content through an unusual vector (e.g.
 // an admin-only page, or a header-driven field) that a generic content-endpoint +
 // generic display-route sweep will miss; then this false-negatives (it never
@@ -164,9 +173,16 @@ func (t *ToolSet) storedXSSVerify() actool.CoreTool {
 			}
 		}
 		return actool.Text(fmt.Sprintf(
-			"No stored XSS confirmed: stored the payload into %d content endpoint(s) but it did not execute on the rendered "+
-				"display routes tried (%s). Note persisted XSS may surface through an app-specific vector/page not covered by a "+
-				"generic content+route sweep. record_fact the negative (inferred); do NOT report_finding.",
+			"No stored XSS confirmed: stored the payload into %d content endpoint(s) but it did NOT execute on the rendered "+
+				"display routes tried (%s). "+
+				"CRITICAL: a payload being STORED UNESCAPED is necessary but NOT sufficient for stored XSS. If a write endpoint "+
+				"echoes your payload back raw (e.g. GET .../reviews returns <iframe...> intact), that alone is NOT a finding: it is "+
+				"only exploitable if it EXECUTES when the page is rendered. Many apps store content verbatim yet output-encode it on "+
+				"display (Angular/React escape interpolated text by default), so the stored tag shows as literal text and never runs. "+
+				"This oracle rendered the content in a real browser and saw no execution, so there is no stored XSS here. Do NOT "+
+				"report_finding on the basis that the payload was stored unescaped; record_fact the negative (inferred). Persisted XSS "+
+				"may still surface through an app-specific vector/page not covered by a generic sweep, but that too requires rendered "+
+				"execution, never mere storage.",
 			stored, strings.Join(storedDisplayRoutes, ", "))), nil
 	})
 }

@@ -32,13 +32,13 @@ func TestRenderSystemOverrideAndFallback(t *testing.T) {
 	}
 
 	// full plannerSystem path: DB body [A] is honored, then the code-owned tail
-	// [C] (中间产物输出规约) is ALWAYS appended — editing the body can't drop it.
+	// [C] (artifactSpec) is ALWAYS appended: editing the body can't drop it.
 	PromptOverride = func(k string) (string, bool) { return "PLANNER {{.Goal}}", true }
 	got := plannerSystem("拿下X", "/data")
 	if !strings.HasPrefix(got, "PLANNER 拿下X") {
 		t.Fatalf("plannerSystem body not honored: %q", got)
 	}
-	if !strings.Contains(got, "中间产物输出规约") || !strings.Contains(got, "/data") {
+	if !strings.Contains(got, "Intermediate-artifact output convention") || !strings.Contains(got, "/data") {
 		t.Fatalf("plannerSystem missing code-owned artifact tail: %q", got)
 	}
 
@@ -54,7 +54,7 @@ func TestRenderSystemOverrideAndFallback(t *testing.T) {
 	if !strings.Contains(withProxy, "traffic_search") {
 		t.Fatalf("worker with proxy should inject trafficTool: %q", withProxy)
 	}
-	if !strings.Contains(withProxy, "中间产物输出规约") {
+	if !strings.Contains(withProxy, "Intermediate-artifact output convention") {
 		t.Fatalf("worker missing artifact tail: %q", withProxy)
 	}
 	noProxy := workerSystem("", "/data")
