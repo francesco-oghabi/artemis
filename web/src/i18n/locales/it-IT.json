@@ -220,7 +220,7 @@
   },
   "login": {
     "title": "Accedi",
-    "welcome": "Bentornato. Accedi ad Artemis con il tuo account e la tua password.",
+    "welcome": "Bentornato. Accedi ad OpenArtemis con il tuo account e la tua password.",
     "username": "Nome utente",
     "usernamePlaceholder": "Nome utente",
     "password": "Password",
@@ -232,7 +232,7 @@
   },
   "setup": {
     "title": "Imposta password",
-    "intro": "Primo utilizzo di Artemis. Impostare una password di accesso per l'account (almeno 8 caratteri).",
+    "intro": "Primo utilizzo di OpenArtemis. Impostare una password di accesso per l'account (almeno 8 caratteri).",
     "newPassword": "Nuova password",
     "newPasswordPlaceholder": "Almeno 8 caratteri",
     "confirm": "Conferma password",
