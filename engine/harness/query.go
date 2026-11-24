@@ -805,6 +805,26 @@ func (l *loop) streamAndExecute(schemas []llm.ToolSchema) (asst llm.Message, exe
 	if err != nil {
 		return asst, exec, stopReason, err, false, false
 	}
+	// Recover any tool call the gateway leaked into text as <function=…> (a parser
+	// miss on its side): the live stream produced no tool_use events for it, so it
+	// was never dispatched. Promote and dispatch it now, before finishing, exactly
+	// as completeAndExecute does for its assembled message.
+	if newBlocks, salvaged := salvageTextToolCalls(asst.Content); len(salvaged) > 0 {
+		asst.Content = newBlocks
+		if stopReason == "end_turn" {
+			stopReason = "tool_use"
+		}
+		for i := range salvaged {
+			block := salvaged[i]
+			if !l.emit(Event{Kind: KindToolUse, ToolUse: &block}) {
+				return asst, exec, stopReason, nil, true, false
+			}
+			exec.add(block)
+			if !exec.drain() {
+				return asst, exec, stopReason, nil, true, false
+			}
+		}
+	}
 	// Drain tools to completion (or synthesize on abort).
 	cs, ab := exec.finish()
 	if cs {
@@ -827,8 +847,16 @@ func (l *loop) completeAndExecute(req llm.CompletionRequest) (asst llm.Message, 
 		return asst, exec, "", cerr, false, false
 	}
 	l.usage.Add(usage)
-	asst = msg
 	stopReason = sr
+	// Recover a tool call leaked into text as <function=…> (gateway parser miss) so
+	// the dispatch loop below runs it; a turn with proper tool_use is left untouched.
+	if newBlocks, salvaged := salvageTextToolCalls(msg.Content); len(salvaged) > 0 {
+		msg.Content = newBlocks
+		if stopReason == "end_turn" {
+			stopReason = "tool_use"
+		}
+	}
+	asst = msg
 	for _, b := range msg.Content {
 		switch b.Type {
 		case llm.BlockThinking:

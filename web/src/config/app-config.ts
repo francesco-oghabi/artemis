@@ -7,7 +7,7 @@ export const APP_CONFIG = {
   version: packageJson.version,
   copyright: `© ${currentYear}, Artemis.`,
   meta: {
-    title: "Artemis — 自主渗透测试控制台",
-    description: "AI 驱动的自主渗透测试平台",
+    title: "Artemis, console di penetration testing autonomo",
+    description: "Piattaforma di penetration testing autonomo guidata dall'AI",
   },
 };

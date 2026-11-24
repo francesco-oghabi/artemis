@@ -17,18 +17,18 @@ func (s *Server) linkFindingTraffic(w http.ResponseWriter, r *http.Request) {
 	}
 	nodeID, ok := pathInt(r, "id")
 	if !ok {
-		writeErr(w, 400, "无效的漏洞 id")
+		writeErr(w, 400, "id vulnerabilità non valido")
 		return
 	}
 	var req struct {
 		ExchangeIDs []string `json:"exchange_ids"`
 	}
 	if err := decode(r, &req); err != nil {
-		writeErr(w, 400, "请求格式错误")
+		writeErr(w, 400, "formato della richiesta errato")
 		return
 	}
 	if err := pg.LinkFindingTraffic(nodeID, req.ExchangeIDs, "manual"); err != nil {
-		writeErr(w, 500, "关联失败: "+err.Error())
+		writeErr(w, 500, "associazione fallita: "+err.Error())
 		return
 	}
 	writeJSON(w, 200, map[string]any{"ok": true, "linked": len(req.ExchangeIDs)})
@@ -42,12 +42,12 @@ func (s *Server) listFindingTraffic(w http.ResponseWriter, r *http.Request) {
 	}
 	nodeID, ok := pathInt(r, "id")
 	if !ok {
-		writeErr(w, 400, "无效的漏洞 id")
+		writeErr(w, 400, "id vulnerabilità non valido")
 		return
 	}
 	ids, err := pg.ListFindingTrafficIDs(nodeID)
 	if err != nil {
-		writeErr(w, 500, "获取失败")
+		writeErr(w, 500, "recupero fallito")
 		return
 	}
 	var metas []traffic.ExchangeMeta
@@ -65,11 +65,11 @@ func (s *Server) unlinkFindingTraffic(w http.ResponseWriter, r *http.Request) {
 	}
 	nodeID, ok := pathInt(r, "id")
 	if !ok {
-		writeErr(w, 400, "无效的漏洞 id")
+		writeErr(w, 400, "id vulnerabilità non valido")
 		return
 	}
 	if err := pg.UnlinkFindingTraffic(nodeID, r.PathValue("eid")); err != nil {
-		writeErr(w, 500, "解除失败: "+err.Error())
+		writeErr(w, 500, "dissociazione fallita: "+err.Error())
 		return
 	}
 	writeJSON(w, 200, map[string]any{"ok": true})

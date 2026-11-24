@@ -485,6 +485,8 @@ func (t *ToolSet) WorkerTools() []actool.CoreTool {
 		t.insertAssets(), t.addCompanyScope(), t.listAssets(), t.listCompanies(),
 		// knowledge base (global + this task); nil store guarded internally
 		t.searchKnowledge(), t.listKnowledgeCategories(),
+		// offline utilities
+		t.hashCrack(),
 	}
 	// Deterministic class verifiers (xss_verify, redirect_verify, ...), one per
 	// registered VulnClass. Centralized in vulnClasses so adding an oracle is a

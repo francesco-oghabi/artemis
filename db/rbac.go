@@ -24,42 +24,42 @@ const (
 
 // RBACPermissions —— 平台权限目录（module:action），按 Artemis 实际模块定义。
 var RBACPermissions = map[string]string{
-	"auth:self":       "管理自己的会话和密码",
-	"dashboard:read":  "查看仪表盘总览",
-	"task:read":       "查看任务 / 探索链路 / 会话",
-	"task:write":      "创建 / 控制任务、发送对话引导",
-	"task:delete":     "删除任务",
-	"finding:read":    "查看漏洞发现",
-	"finding:write":   "创建 / 更新漏洞发现",
-	"finding:delete":  "删除漏洞发现",
-	"traffic:read":    "查看流量录制",
-	"asset:read":      "查看资产 / 公司",
-	"asset:write":     "创建 / 导入 / 同步资产",
-	"asset:delete":    "删除资产",
-	"llm:read":        "查看 LLM 配置",
-	"llm:write":       "管理 LLM 配置与模型",
-	"agent:read":      "查看 Agent 配置",
-	"agent:write":     "管理 Agent / 提示词 / 触发器",
-	"mcp:read":        "查看 MCP 服务",
-	"mcp:write":       "管理 MCP 服务",
-	"skill:read":      "查看技能",
-	"skill:write":     "创建 / 更新技能",
-	"skill:delete":    "删除技能",
-	"tool:read":       "查看工具",
-	"tool:write":      "管理工具 / 自定义工具",
-	"intercept:read":  "查看拦截规则 / 审批",
-	"intercept:write": "管理拦截规则 / 处理审批",
-	"log:read":        "查看后端日志 / 审计",
-	"config:read":     "查看系统配置",
-	"config:write":    "修改系统配置",
-	"knowledge:read":   "查看知识库 / 检索",
-	"knowledge:write":  "创建 / 更新知识库文档、配置 embedder",
-	"knowledge:delete": "删除知识库文档",
-	"report:read":      "查看 / 下载报告、模版与报告设置",
-	"report:write":     "生成报告、管理模版与报告设置",
-	"report:delete":    "删除报告 / 模版",
-	"rbac:read":       "查看用户 / 角色 / 权限",
-	"rbac:write":      "管理用户 / 角色 / 权限",
+	"auth:self":       "Gestire le proprie sessioni e password",
+	"dashboard:read":  "Visualizzare la panoramica della dashboard",
+	"task:read":       "Visualizzare task / catena di esplorazione / sessioni",
+	"task:write":      "Creare / controllare task, inviare guida alla conversazione",
+	"task:delete":     "Eliminare i task",
+	"finding:read":    "Visualizzare i rilievi di vulnerabilità",
+	"finding:write":   "Creare / aggiornare i rilievi di vulnerabilità",
+	"finding:delete":  "Eliminare i rilievi di vulnerabilità",
+	"traffic:read":    "Visualizzare le registrazioni del traffico",
+	"asset:read":      "Visualizzare asset / aziende",
+	"asset:write":     "Creare / importare / sincronizzare asset",
+	"asset:delete":    "Eliminare asset",
+	"llm:read":        "Visualizzare la configurazione LLM",
+	"llm:write":       "Gestire la configurazione LLM e i modelli",
+	"agent:read":      "Visualizzare la configurazione Agent",
+	"agent:write":     "Gestire Agent / prompt / trigger",
+	"mcp:read":        "Visualizzare i servizi MCP",
+	"mcp:write":       "Gestire i servizi MCP",
+	"skill:read":      "Visualizzare le skill",
+	"skill:write":     "Creare / aggiornare le skill",
+	"skill:delete":    "Eliminare le skill",
+	"tool:read":       "Visualizzare gli strumenti",
+	"tool:write":      "Gestire gli strumenti / strumenti personalizzati",
+	"intercept:read":  "Visualizzare le regole di intercettazione / approvazioni",
+	"intercept:write": "Gestire le regole di intercettazione / gestire le approvazioni",
+	"log:read":        "Visualizzare i log del backend / audit",
+	"config:read":     "Visualizzare la configurazione di sistema",
+	"config:write":    "Modificare la configurazione di sistema",
+	"knowledge:read":   "Visualizzare la knowledge base / ricerca",
+	"knowledge:write":  "Creare / aggiornare documenti della knowledge base, configurare l'embedder",
+	"knowledge:delete": "Eliminare documenti della knowledge base",
+	"report:read":      "Visualizzare / scaricare report, modelli e impostazioni dei report",
+	"report:write":     "Generare report, gestire modelli e impostazioni dei report",
+	"report:delete":    "Eliminare report / modelli",
+	"rbac:read":       "Visualizzare utenti / ruoli / permessi",
+	"rbac:write":      "Gestire utenti / ruoli / permessi",
 }
 
 // RBACUser 平台账号。
@@ -159,10 +159,10 @@ func (d *DB) BootstrapRBAC(adminHash string) error {
 
 	// 系统角色
 	sysRoles := []RBACRole{
-		{ID: RBACRoleAdmin, Name: "管理员", Description: "全局管理权限", Scope: RBACScopeAll, IsSystem: true},
-		{ID: RBACRoleOperator, Name: "操作员", Description: "可执行日常安全工作流，不能管理账号与核心配置", Scope: RBACScopeAssigned, IsSystem: true},
-		{ID: RBACRoleAuditor, Name: "审计员", Description: "只读查看审计、监控与资产", Scope: RBACScopeAll, IsSystem: true},
-		{ID: RBACRoleViewer, Name: "只读用户", Description: "只读查看被授权资源", Scope: RBACScopeAssigned, IsSystem: true},
+		{ID: RBACRoleAdmin, Name: "Amministratore", Description: "Permessi di amministrazione globale", Scope: RBACScopeAll, IsSystem: true},
+		{ID: RBACRoleOperator, Name: "Operatore", Description: "Può eseguire i flussi di lavoro di sicurezza quotidiani, non può gestire account e configurazione principale", Scope: RBACScopeAssigned, IsSystem: true},
+		{ID: RBACRoleAuditor, Name: "Revisore", Description: "Visualizzazione in sola lettura di audit, monitoraggio e asset", Scope: RBACScopeAll, IsSystem: true},
+		{ID: RBACRoleViewer, Name: "Utente in sola lettura", Description: "Visualizzazione in sola lettura delle risorse autorizzate", Scope: RBACScopeAssigned, IsSystem: true},
 	}
 	for _, r := range sysRoles {
 		if _, err := tx.Exec(`INSERT INTO rbac_roles(id,name,description,scope,is_system,created_at,updated_at)
@@ -213,7 +213,7 @@ func (d *DB) BootstrapRBAC(adminHash string) error {
 	if userCount == 0 && strings.TrimSpace(adminHash) != "" {
 		id := "admin"
 		if _, err := tx.Exec(`INSERT INTO rbac_users(id,username,display_name,password_hash,enabled,is_builtin,created_at,updated_at)
-			VALUES ($1,'admin','管理员',$2,true,true,$3,$3)`, id, adminHash, now); err != nil {
+			VALUES ($1,'admin','Amministratore',$2,true,true,$3,$3)`, id, adminHash, now); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(`INSERT INTO rbac_user_roles(user_id,role_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, id, RBACRoleAdmin); err != nil {
@@ -324,7 +324,7 @@ func (d *DB) ListRBACUserRoleIDs(userID string) ([]string, error) {
 func (d *DB) CreateRBACUser(username, displayName, passwordHash string, enabled bool, roleIDs []string) (*RBACUser, error) {
 	username = strings.TrimSpace(strings.ToLower(username))
 	if username == "" || passwordHash == "" {
-		return nil, errors.New("用户名与密码必填")
+		return nil, errors.New("nome utente e password obbligatori")
 	}
 	id := newRBACID()
 	now := time.Now()
@@ -353,7 +353,7 @@ func (d *DB) CreateRBACUser(username, displayName, passwordHash string, enabled 
 func (d *DB) UpdateRBACUser(userID, displayName string, enabled *bool, roleIDs *[]string) error {
 	userID = strings.TrimSpace(userID)
 	if userID == "" {
-		return errors.New("缺少用户 ID")
+		return errors.New("ID utente mancante")
 	}
 	tx, err := d.Begin()
 	if err != nil {
@@ -391,7 +391,7 @@ func (d *DB) UpdateRBACUser(userID, displayName string, enabled *bool, roleIDs *
 
 func (d *DB) UpdateRBACUserPassword(userID, passwordHash string) error {
 	if strings.TrimSpace(userID) == "" || passwordHash == "" {
-		return errors.New("参数缺失")
+		return errors.New("parametri mancanti")
 	}
 	// token_version+1：改密即作废该用户此前签发的所有 JWT（旧 token 下次请求被拒）。
 	_, err := d.Exec(`UPDATE rbac_users SET password_hash=$1,token_version=token_version+1,updated_at=now() WHERE id=$2`, passwordHash, userID)
@@ -401,7 +401,7 @@ func (d *DB) UpdateRBACUserPassword(userID, passwordHash string) error {
 func (d *DB) DeleteRBACUser(userID string) error {
 	userID = strings.TrimSpace(userID)
 	if userID == "" || userID == "admin" {
-		return errors.New("该用户不可删除")
+		return errors.New("questo utente non può essere eliminato")
 	}
 	_, err := d.Exec(`DELETE FROM rbac_users WHERE id=$1 AND is_builtin=false`, userID)
 	return err
@@ -457,13 +457,13 @@ func (d *DB) ListRBACRolePermissionKeys(roleID string) ([]string, error) {
 func (d *DB) UpsertRBACRole(id, name, description, scope string, permKeys []string) (*RBACRole, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return nil, errors.New("角色名不能为空")
+		return nil, errors.New("il nome del ruolo non può essere vuoto")
 	}
 	if scope != RBACScopeAll && scope != RBACScopeAssigned && scope != RBACScopeOwn {
 		scope = RBACScopeAssigned
 	}
 	if id == RBACRoleAdmin || id == RBACRoleOperator || id == RBACRoleAuditor || id == RBACRoleViewer {
-		return nil, errors.New("系统角色不可编辑")
+		return nil, errors.New("i ruoli di sistema non possono essere modificati")
 	}
 	if strings.TrimSpace(id) == "" {
 		id = newRBACID()
@@ -488,7 +488,7 @@ func (d *DB) UpsertRBACRole(id, name, description, scope string, permKeys []stri
 			continue
 		}
 		if _, ok := RBACPermissions[k]; !ok {
-			return nil, errors.New("未知权限: " + k)
+			return nil, errors.New("permesso sconosciuto: " + k)
 		}
 		if _, err := tx.Exec(`INSERT INTO rbac_role_permissions(role_id,permission_key) VALUES ($1,$2) ON CONFLICT DO NOTHING`, id, k); err != nil {
 			return nil, err
@@ -503,7 +503,7 @@ func (d *DB) UpsertRBACRole(id, name, description, scope string, permKeys []stri
 func (d *DB) DeleteRBACRole(id string) error {
 	id = strings.TrimSpace(id)
 	if id == RBACRoleAdmin || id == RBACRoleOperator || id == RBACRoleAuditor || id == RBACRoleViewer {
-		return errors.New("系统角色不可删除")
+		return errors.New("i ruoli di sistema non possono essere eliminati")
 	}
 	_, err := d.Exec(`DELETE FROM rbac_roles WHERE id=$1 AND is_system=false`, id)
 	return err

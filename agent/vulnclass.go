@@ -44,6 +44,10 @@ var vulnClasses = []VulnClass{
 	captchaClass{},
 	traversalClass{},
 	jwtClass{},
+	idorClass{},
+	buslogicClass{},
+	massassignClass{},
+	storedXSSClass{},
 }
 
 // ExpandClassNames returns the registered class names in registry order. The
@@ -138,3 +142,39 @@ func (jwtClass) Name() string                          { return "jwt" }
 func (jwtClass) Expand(s Surface, maxN int) []string   { return jwtSummaries(s, maxN) }
 func (jwtClass) VerifyTool(t *ToolSet) actool.CoreTool { return t.jwtVerify() }
 func (jwtClass) DefaultCap() int                       { return 1 }
+
+// --- IDOR / broken object-level authorization (V06) --------------------------
+
+type idorClass struct{}
+
+func (idorClass) Name() string                          { return "idor" }
+func (idorClass) Expand(s Surface, maxN int) []string   { return idorSummaries(s, maxN) }
+func (idorClass) VerifyTool(t *ToolSet) actool.CoreTool { return t.idorVerify() }
+func (idorClass) DefaultCap() int                       { return 1 }
+
+// --- negative-quantity business-logic flaw (V16) -----------------------------
+
+type buslogicClass struct{}
+
+func (buslogicClass) Name() string                          { return "buslogic" }
+func (buslogicClass) Expand(s Surface, maxN int) []string   { return buslogicSummaries(s, maxN) }
+func (buslogicClass) VerifyTool(t *ToolSet) actool.CoreTool { return t.buslogicVerify() }
+func (buslogicClass) DefaultCap() int                       { return 1 }
+
+// --- mass assignment of a privileged field (V05) -----------------------------
+
+type massassignClass struct{}
+
+func (massassignClass) Name() string                          { return "massassign" }
+func (massassignClass) Expand(s Surface, maxN int) []string   { return massassignSummaries(s, maxN) }
+func (massassignClass) VerifyTool(t *ToolSet) actool.CoreTool { return t.massassignVerify() }
+func (massassignClass) DefaultCap() int                       { return 1 }
+
+// --- stored / persisted XSS (V08) --------------------------------------------
+
+type storedXSSClass struct{}
+
+func (storedXSSClass) Name() string                          { return "storedxss" }
+func (storedXSSClass) Expand(s Surface, maxN int) []string   { return storedXSSSummaries(s, maxN) }
+func (storedXSSClass) VerifyTool(t *ToolSet) actool.CoreTool { return t.storedXSSVerify() }
+func (storedXSSClass) DefaultCap() int                       { return 1 }
