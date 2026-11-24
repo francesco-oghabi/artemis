@@ -110,6 +110,14 @@ func DecomposeGoals(ctx context.Context, c Config, goalText, desc string, emit f
 			emit(r)
 		}
 	}
+	// Greedy (temperature 0) for decomposition. With sampling (the profile's
+	// temperature), the breadth of the decomposition varies wildly run to run,
+	// because seed-based reproducibility is NOT honored on this serving path
+	// (verified empirically: identical requests at temperature 0.3 + seed 42
+	// produce different outputs; greedy produces identical, comprehensive output).
+	// Decomposition is a one-shot structured task where determinism is what we
+	// want, so it is decoupled from the exploratory temperature of the main loop.
+	greedyTemp := 0.0
 	captureRun(ctx, agentcore.Options{
 		Provider:               prov,
 		SystemPrompt:           []string{sys},
@@ -117,6 +125,7 @@ func DecomposeGoals(ctx context.Context, c Config, goalText, desc string, emit f
 		PermissionMode:         acperm.ModeBypass,
 		DisableBackgroundTasks: true,
 		MaxTurns:               4,
+		Temperature:            &greedyTemp,
 	}, userMsg, captureEmit)
 	if !captured {
 		return nil
