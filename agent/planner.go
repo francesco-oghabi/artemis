@@ -120,7 +120,7 @@ func renderGraphOverview(data map[string]any) string {
 }
 
 // plannerDefaultTmpl is the built-in EDITABLE body (段 [A]) of the planner prompt,
-// seeded into agent_prompts. Goal is a {{.Goal}} template var; the 中间产物输出规约
+// seeded into agent_prompts. Goal is a {{.Goal}} template var; the artifact-output
 // tail is code-owned (artifactSpec) and appended by plannerSystem after rendering.
 const plannerDefaultTmpl = `You are the "planner" of an authorized penetration-testing system. You are woken up frequently (woken whenever the graph changes). Your responsibilities: read the situation, judge the goals, and **only when there genuinely is a new uncovered direction** add exploration intents.
 
