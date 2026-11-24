@@ -3,11 +3,11 @@ import packageJson from "../../package.json";
 const currentYear = new Date().getFullYear();
 
 export const APP_CONFIG = {
-  name: "Artemis",
+  name: "OpenArtemis",
   version: packageJson.version,
-  copyright: `© ${currentYear}, Artemis.`,
+  copyright: `© ${currentYear}, OpenArtemis.`,
   meta: {
-    title: "Artemis, console di penetration testing autonomo",
+    title: "OpenArtemis, console di penetration testing autonomo",
     description: "Piattaforma di penetration testing autonomo guidata dall'AI",
   },
 };

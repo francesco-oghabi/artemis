@@ -59,7 +59,7 @@ export default function LoginPage() {
       <div className="absolute top-4 right-4 z-20">
         <LanguageSwitcher />
       </div>
-      {/* Left brand panel — feature background image login.jpg + Artemis branding */}
+      {/* Left brand panel — feature background image login.jpg + OpenArtemis branding */}
       <div className="relative hidden flex-col items-center justify-center overflow-hidden p-12 text-center lg:flex lg:w-1/2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/login.jpg" alt="" className="absolute inset-0 size-full object-cover" />
@@ -69,7 +69,7 @@ export default function LoginPage() {
           <ArtemisLogo className="size-24 drop-shadow-xl" />
           <div className="space-y-1.5">
             <div className="text-4xl font-bold tracking-tight">
-              Anti<span className="bg-gradient-to-r from-[#4F6BF6] to-[#7C3AED] bg-clip-text text-transparent">Fox</span>
+              Open<span className="bg-gradient-to-r from-[#4F6BF6] to-[#7C3AED] bg-clip-text text-transparent">Artemis</span>
             </div>
             <div className="text-xs font-medium uppercase tracking-[0.25em] text-white/70">
               AI Autonomous Pentest Platform

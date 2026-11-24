@@ -220,7 +220,7 @@
   },
   "login": {
     "title": "Sign In",
-    "welcome": "Welcome back. Sign in to Artemis with your account and password.",
+    "welcome": "Welcome back. Sign in to OpenArtemis with your account and password.",
     "username": "Username",
     "usernamePlaceholder": "Username",
     "password": "Password",
@@ -232,7 +232,7 @@
   },
   "setup": {
     "title": "Set Up Password",
-    "intro": "First time using Artemis. Set a login password for your account (at least 8 characters).",
+    "intro": "First time using OpenArtemis. Set a login password for your account (at least 8 characters).",
     "newPassword": "New Password",
     "newPasswordPlaceholder": "At least 8 characters",
     "confirm": "Confirm Password",
