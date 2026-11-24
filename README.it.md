@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/banner.png" alt="OpenArtemis — Piattaforma di penetration testing autonomo guidata da AI" width="100%" />
+
 # OpenArtemis
 
 **Piattaforma di penetration testing autonomo guidata da AI, pensata per rendere usabili i modelli a peso aperto come cervello del loop.**

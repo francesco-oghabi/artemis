@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/banner.png" alt="OpenArtemis — Autonomous AI Penetration-Testing Platform" width="100%" />
+
 # OpenArtemis
 
 **An AI autonomous penetration-testing platform, built to make open-weight models usable as the reasoning core.**
