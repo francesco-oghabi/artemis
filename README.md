@@ -1,6 +1,6 @@
 <div align="center">
 
-# Artemis
+# OpenArtemis
 
 **An AI autonomous penetration-testing platform, built to make open-weight models usable as the reasoning core.**
 
@@ -14,9 +14,9 @@ English | [Italiano](README.it.md)
 
 ---
 
-## What is Artemis
+## What is OpenArtemis
 
-Artemis is a platform for **autonomous penetration testing**. Given an authorized
+OpenArtemis is a platform for **autonomous penetration testing**. Given an authorized
 target, a team of agents (a planner, N workers, a main agent) drives the full loop,
 recon, attack-surface discovery, exploitation, vulnerability recording, and report
 delivery, around a **dual-graph architecture** (a global asset graph plus a
@@ -24,15 +24,15 @@ per-task exploration graph). The engine is event-driven: a change in the graph w
 the planner, which dispatches intents; a worker executes an intent and writes results
 back; the write-back triggers the next round, until a goal is proven.
 
-Unlike tools that are strong at *finding* but stop there, Artemis keeps the
+Unlike tools that are strong at *finding* but stop there, OpenArtemis keeps the
 reproduction steps and evidence fixed as it works: every step is recorded with its
 real request, response, and verdict, and each step is linked to the actual MITM-captured
 traffic packet. The engineer's job shifts from "assemble a report from scratch" to
 "verify what the agent already proved".
 
-## Why Artemis exists
+## Why OpenArtemis exists
 
-The frontier of this field is dominated by closed, hosted models. Artemis asks a
+The frontier of this field is dominated by closed, hosted models. OpenArtemis asks a
 different question:
 
 > **How far can an open-weight model, run locally, be pushed as the decision-maker
@@ -51,24 +51,24 @@ The central finding of the project, measured run after run, is blunt and useful:
 > **structural guarantee in code** for every rule it keeps ignoring. A frontier
 > model does not need those guardrails; a weak one needs one per failure mode.
 
-Artemis is the accumulation of those guardrails plus the prompt, tool, and
+OpenArtemis is the accumulation of those guardrails plus the prompt, tool, and
 knowledge-base levers around them, measured against a frontier reference so the
 progress is honest rather than anecdotal.
 
 ## Where it comes from (lineage)
 
-Artemis is a derivative work and says so plainly:
+OpenArtemis is a derivative work and says so plainly:
 
 ```
 ARTEX  (by @Autumn-27)
   └── AntiFox  (by AntiFox-AI)  — re-centered on evidence-driven delivery
-        └── Artemis  (this project)  — focused on open-weight local models
+        └── OpenArtemis  (this project)  — focused on open-weight local models
 ```
 
 It inherits a strong base from AntiFox and ARTEX (the exploration-graph engine, MITM
 traffic recording, rule-based human-in-the-loop interception, multi-agent
 orchestration). Full attribution is in [NOTICE](NOTICE). Per AGPL-3.0, the complete
-source of Artemis is in this repository.
+source of OpenArtemis is in this repository.
 
 ## How it works
 
@@ -119,7 +119,7 @@ here, the limit is the model, not the plumbing.
 - **Frontier reference (ceiling).** A frontier model, driven directly, confirmed
   **18 distinct vulnerabilities** on Juice Shop (critical through low) with real
   exploitation (UNION dumps, JWT `alg:none` forgery, mass assignment, NoSQL, path
-  traversal). This is the yardstick Artemis measures the local model against.
+  traversal). This is the yardstick OpenArtemis measures the local model against.
 - **Local open-weight model.** A ~30B open-weight coder model served locally on a
   single consumer GPU via Ollama. Early runs landed at roughly 2 to 6 vulnerabilities
   with high run-to-run variance. After the deterministic-verifier suite below (now
@@ -171,13 +171,13 @@ the unsalted MD5 hashes (V12), and forges JWTs (V04) rather than only proving a 
 exists. What remains: **noise** (negatives recorded as findings plus duplicates; much
 lower since the IDOR/business-logic work but not eliminated), and the fact that the
 comparison is **not at harness parity**, the frontier model was driven in a direct session
-(full shell), the local model inside Artemis's constrained planner/worker loop, so the gap
+(full shell), the local model inside OpenArtemis's constrained planner/worker loop, so the gap
 is model *plus* harness. Isolating the model gap needs the still-missing third data point:
-the frontier model driven *inside* Artemis.
+the frontier model driven *inside* OpenArtemis.
 
 Full methodology and the honest results in [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
-## What Artemis adds over its upstreams
+## What OpenArtemis adds over its upstreams
 
 Everything below is engineering to make a weak open-weight model actually deliver. Each
 item is either a structural guarantee in code or a measured lever:
@@ -271,7 +271,7 @@ workflow.
 docker compose -f targets/juice-shop/docker-compose.yml up -d   # OWASP Juice Shop
 ```
 
-The target joins the `artemis_default` Docker network and Artemis reaches it by
+The target joins the `artemis_default` Docker network and OpenArtemis reaches it by
 container name (`http://juice-shop:3000`). See [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
 ## Documentation
@@ -284,11 +284,11 @@ container name (`http://juice-shop:3000`). See [docs/BENCHMARK.md](docs/BENCHMAR
 
 ## License and responsible use
 
-Artemis is released under **AGPL-3.0** (see [LICENSE](LICENSE)). Use, modification, and
+OpenArtemis is released under **AGPL-3.0** (see [LICENSE](LICENSE)). Use, modification, and
 redistribution (including offering it as a network service) must comply with that
 license.
 
-**Artemis is an offensive, dual-use tool. Use it only against systems you are
+**OpenArtemis is an offensive, dual-use tool. Use it only against systems you are
 explicitly authorized to test** (your own lab, deliberately vulnerable targets such as
 Juice Shop, or engagements with written permission). You are solely responsible for
 complying with all applicable laws on computer security, data protection, and computer
