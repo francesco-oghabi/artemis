@@ -1,6 +1,8 @@
 <div align="center">
 
-# Artemis
+<img src="docs/banner.png" alt="OpenArtemis — Piattaforma di penetration testing autonomo guidata da AI" width="100%" />
+
+# OpenArtemis
 
 **Piattaforma di penetration testing autonomo guidata da AI, pensata per rendere usabili i modelli a peso aperto come cervello del loop.**
 
@@ -14,9 +16,9 @@
 
 ---
 
-## Cos'è Artemis
+## Cos'è OpenArtemis
 
-Artemis è una piattaforma di **penetration testing autonomo**. Dato un target
+OpenArtemis è una piattaforma di **penetration testing autonomo**. Dato un target
 autorizzato, una squadra di agenti (un planner, N worker, un main agent) guida l'intero
 ciclo, ricognizione, scoperta della superficie d'attacco, sfruttamento, registrazione
 delle vulnerabilità e consegna del report, attorno a una **architettura a doppio grafo**
@@ -25,15 +27,15 @@ event-driven: una modifica al grafo risveglia il planner, che dispaccia intent; 
 worker esegue un intent e riscrive i risultati; la riscrittura innesca il giro
 successivo, finché un obiettivo non è provato.
 
-A differenza degli strumenti forti nel *trovare* ma che si fermano lì, Artemis fissa i
+A differenza degli strumenti forti nel *trovare* ma che si fermano lì, OpenArtemis fissa i
 passi di riproduzione e le evidenze mentre lavora: ogni passo è registrato con la sua
 richiesta reale, la risposta e il verdetto, e ogni passo è collegato al pacchetto di
 traffico reale catturato via MITM. Il lavoro dell'ingegnere passa da "costruire un
 report da zero" a "verificare ciò che l'agente ha già provato".
 
-## Perché Artemis
+## Perché OpenArtemis
 
-La frontiera di questo campo è dominata da modelli chiusi e ospitati. Artemis si pone
+La frontiera di questo campo è dominata da modelli chiusi e ospitati. OpenArtemis si pone
 una domanda diversa:
 
 > **Fin dove può essere spinto un modello a peso aperto, eseguito in locale, come
@@ -53,24 +55,24 @@ La scoperta centrale del progetto, misurata run dopo run, è netta e utile:
 > di frontiera non ha bisogno di quei guardrail; uno debole ne richiede uno per ogni
 > modo di fallire.
 
-Artemis è l'accumulo di quei guardrail, più le leve di prompt, strumenti e knowledge
+OpenArtemis è l'accumulo di quei guardrail, più le leve di prompt, strumenti e knowledge
 base attorno ad essi, misurati contro un riferimento di frontiera perché il progresso sia
 onesto e non aneddotico.
 
 ## Da dove viene (filiazione)
 
-Artemis è un'opera derivata e lo dichiara apertamente:
+OpenArtemis è un'opera derivata e lo dichiara apertamente:
 
 ```
 ARTEX  (di @Autumn-27)
   └── AntiFox  (di AntiFox-AI)  — ri-centrato sulla consegna guidata dalle evidenze
-        └── Artemis  (questo progetto)  — focalizzato sui modelli a peso aperto locali
+        └── OpenArtemis  (questo progetto)  — focalizzato sui modelli a peso aperto locali
 ```
 
 Eredita una base solida da AntiFox e ARTEX (il motore a grafo di esplorazione, la
 registrazione del traffico MITM, l'intercettazione human-in-the-loop a regole,
 l'orchestrazione multi-agente). L'attribuzione completa è in [NOTICE](NOTICE). Come da
-AGPL-3.0, il codice sorgente completo di Artemis è in questo repository.
+AGPL-3.0, il codice sorgente completo di OpenArtemis è in questo repository.
 
 ## Come funziona
 
@@ -121,7 +123,7 @@ qui, il limite è il modello, non l'impianto.
 - **Riferimento di frontiera (tetto).** Un modello di frontiera, guidato direttamente, ha
   confermato **18 vulnerabilità distinte** su Juice Shop (da critical a low) con
   sfruttamento reale (dump UNION, forgery JWT `alg:none`, mass assignment, NoSQL, path
-  traversal). È il metro con cui Artemis misura il modello locale.
+  traversal). È il metro con cui OpenArtemis misura il modello locale.
 - **Modello a peso aperto locale.** Un modello coder a peso aperto da ~30B servito in
   locale su una singola GPU consumer via Ollama. I primi run si fermavano a circa 2-6
   vulnerabilità con alta varianza tra run. Dopo la suite di verificatori deterministici
@@ -176,13 +178,13 @@ invece di limitarsi a provare che una classe esiste. Restano: il **rumore** (neg
 registrati come finding e duplicati; molto più basso dopo il lavoro su IDOR/business-logic
 ma non eliminato) e il fatto che il confronto **non è a parità di harness**, la frontiera è
 stata guidata in sessione diretta (shell completa), il modello locale dentro il loop
-planner/worker vincolato di Artemis, quindi il divario è modello *più* harness. Isolare il
+planner/worker vincolato di OpenArtemis, quindi il divario è modello *più* harness. Isolare il
 solo divario di modello richiede il terzo dato ancora mancante: la frontiera guidata
-*dentro* Artemis.
+*dentro* OpenArtemis.
 
 Metodologia completa e risultati onesti in [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
-## Cosa aggiunge Artemis rispetto ai suoi upstream
+## Cosa aggiunge OpenArtemis rispetto ai suoi upstream
 
 Tutto quanto segue è ingegneria per far davvero produrre un modello a peso aperto debole.
 Ogni voce è una garanzia strutturale nel codice oppure una leva misurata:
@@ -278,7 +280,7 @@ sviluppo.
 docker compose -f targets/juice-shop/docker-compose.yml up -d   # OWASP Juice Shop
 ```
 
-Il target si aggancia alla rete Docker `artemis_default` e Artemis lo raggiunge per nome
+Il target si aggancia alla rete Docker `artemis_default` e OpenArtemis lo raggiunge per nome
 container (`http://juice-shop:3000`). Vedi [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
 ## Documentazione
@@ -291,11 +293,11 @@ container (`http://juice-shop:3000`). Vedi [docs/BENCHMARK.md](docs/BENCHMARK.md
 
 ## Licenza e uso responsabile
 
-Artemis è rilasciato sotto **AGPL-3.0** (vedi [LICENSE](LICENSE)). Uso, modifica e
+OpenArtemis è rilasciato sotto **AGPL-3.0** (vedi [LICENSE](LICENSE)). Uso, modifica e
 ridistribuzione (inclusa l'offerta come servizio di rete) devono rispettare quella
 licenza.
 
-**Artemis è uno strumento offensivo, dual-use. Usalo solo contro sistemi per cui hai
+**OpenArtemis è uno strumento offensivo, dual-use. Usalo solo contro sistemi per cui hai
 autorizzazione esplicita** (il tuo lab, target volutamente vulnerabili come Juice Shop, o
 ingaggi con permesso scritto). Sei l'unico responsabile del rispetto di tutte le leggi
 applicabili su sicurezza informatica, protezione dei dati e reati informatici. Il

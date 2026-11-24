@@ -1,11 +1,13 @@
 package agent
 
-// 本文件把内置 agent 的「默认提示词正文」(段 [A]) 变成可枚举、可被服务端幂等
-// 播种进 agent_prompts 表的目录 —— 镜像 toolcatalog.go 的 BuiltinToolSeeds()。
+// This file turns the built-in agents' "default prompt body" (section [A]) into an
+// enumerable catalog that the server can idempotently seed into the agent_prompts table,
+// mirroring toolcatalog.go's BuiltinToolSeeds().
 //
-// 只包含【可编辑正文】：段 [B] trafficTool 与段 [C] 中间产物输出规约 是代码固定
-// 注入(见 worker.go 的 workerTrafficBlock/artifactSpec)，不入库、不可编辑，因此
-// 不在种子里。种子文本用 Go 模板占位({{.Goal}} 等)，渲染时按运行期变量填充。
+// It contains only [the editable body]: section [B] trafficTool and section [C] the
+// intermediate-artifact output convention are code-fixed injections (see worker.go's
+// workerTrafficBlock/artifactSpec), not stored in the DB and not editable, so they are not
+// in the seeds. The seed text uses Go template placeholders ({{.Goal}} etc.), filled with runtime variables at render time.
 
 // autoDefaultTmpl is the built-in "Auto" platform-operator agent's prompt. Auto
 // runs via the chat page and drives the platform through tools: task ops
@@ -24,7 +26,7 @@ Principles:
 - Report in plain language, concisely, what you did and how it turned out; answer only based on the tools' actual returns, don't fabricate.
 - Operate only within the authorized scope.`
 
-// pentestDefaultTmpl is the built-in "渗透测试" (solo pentest) agent's prompt. Unlike
+// pentestDefaultTmpl is the built-in "penetration testing" (solo pentest) agent's prompt. Unlike
 // the orchestration roles (goals/planner/worker), it runs standalone via the chat page
 // and is its own planner + executor + auditor. Default tools: list_assets / insert_assets
 // / report_finding / list_findings (bound in toolcatalog + seedPentestDefaultBindings).

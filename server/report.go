@@ -130,7 +130,7 @@ func (s *Server) downloadReport(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, path)
 }
 
-// reportContentType 按扩展名给出报告下载的 MIME（支持 .docx / .md / .zip[MD 交付包]）。
+// reportContentType returns the download MIME type by file extension (supports .docx / .md / .zip [MD delivery bundle]).
 func reportContentType(path string) string {
 	switch {
 	case strings.HasSuffix(strings.ToLower(path), ".zip"):
@@ -160,9 +160,9 @@ func (s *Server) buildReportInput(t *Task, q map[string][]string) *report.GenInp
 	if locale == "" && tmpl != nil {
 		locale = tmpl.Locale
 	}
-	// Only reuse the persisted (Chinese) enrichment for zh-CN reports; for zh-TW/
-	// en-US we regenerate per-finding so the whole report is in the target language.
-	reuseEnrichment := locale == "" || strings.EqualFold(locale, "zh-CN")
+	// The persisted enrichment is generated in English, so reuse it for the
+	// default English report; any other locale regenerates per-finding.
+	reuseEnrichment := locale == "" || strings.EqualFold(locale, "en-US")
 	// Optional subset: ?finding_ids=12,15,18 selects specific findings (node IDs).
 	idFilter := parseInt64Set(get("finding_ids"))
 
@@ -179,7 +179,7 @@ func (s *Server) buildReportInput(t *Task, q map[string][]string) *report.GenInp
 			Evidence  struct {
 				PoC string `json:"poc"`
 			} `json:"evidence"`
-			Reproduction json.RawMessage `json:"reproduction"` // 就地记录的结构化复现过程(可空)
+			Reproduction json.RawMessage `json:"reproduction"` // structured reproduction steps recorded in place (nullable)
 		}
 		_ = json.Unmarshal(n.Payload, &p)
 		fi := report.FindingInput{
@@ -188,7 +188,7 @@ func (s *Server) buildReportInput(t *Task, q map[string][]string) *report.GenInp
 			PoC: p.Evidence.PoC, CreatedAt: n.CreatedAt,
 			Reproduction: p.Reproduction, // authoritative test_process — rendered verbatim, AI skips rebuild
 		}
-		// Reuse persisted enrichment (from the findings page "AI 分析") so the report
+		// Reuse persisted enrichment (from the findings page "AI analysis") so the report
 		// is consistent with what the user reviewed and skips a redundant LLM call.
 		if enr, _ := s.m.pg.GetFindingEnrichment(n.ID); enr != nil {
 			if reuseEnrichment {
@@ -200,7 +200,7 @@ func (s *Server) buildReportInput(t *Task, q map[string][]string) *report.GenInp
 		}
 		// No persisted enrichment to reuse (fresh finding, or zh-TW/en-US
 		// regeneration) → ground the on-the-fly narrative in the real work
-		// transcript, same as the findings-page "AI 分析".
+		// transcript, same as the findings-page "AI analysis".
 		if fi.Enrichment == nil {
 			fi.Transcript = s.m.pg.FindingSourceTranscript(n.ID, 40000)
 		}
@@ -212,10 +212,12 @@ func (s *Server) buildReportInput(t *Task, q map[string][]string) *report.GenInp
 			counts = c
 		}
 	}
-	// 项目名(封面/标题)用【短任务名】，绝不用整段描述——否则用户把目标系统清单写进
-	// 描述时会被灌进封面"项目名称"、撑爆封面(整段描述当标题会很乱)。完整描述另经 Scope 喂 AI。
+	// The project name (cover/title) uses the [short task name], never the full description, since
+	// otherwise, when the user writes the target-system inventory into the description, it gets stuffed
+	// into the cover's "project name" and blows up the cover (a whole description as a title is messy).
+	// The full description is fed to the AI separately via Scope.
 	project := defaultStrSrv(t.Name, "progetto di penetration test")
-	if len([]rune(project)) > 40 { // 名称异常长(误填清单)→ 回退,别撑爆封面
+	if len([]rune(project)) > 40 { // abnormally long name (an inventory filled in by mistake) -> fall back, don't blow up the cover
 		project = "progetto di penetration test"
 	}
 
@@ -255,18 +257,18 @@ func (s *Server) buildReportInput(t *Task, q map[string][]string) *report.GenInp
 		CompanyNameEn: companyEn,
 		ClientName:    get("client"),
 		ProjectName:   defaultStrSrv(get("project"), project),
-		Scope:         strings.TrimSpace(t.Description), // 完整目标系统清单/范围→喂 AI 叙述,不上封面
+		Scope:         strings.TrimSpace(t.Description), // full target-system inventory/scope -> fed to the AI narrative, not placed on the cover
 
-		ReportTitle:   get("title"), // empty → BuildDoc applies locale-aware "<project> <报告词>"
+		ReportTitle:   get("title"), // empty -> BuildDoc applies locale-aware "<project> <report word>"
 		Version:       defaultStrSrv(get("version"), "V1.0"),
-		Locale:        defaultStrSrv(locale, "zh-CN"),
+		Locale:        defaultStrSrv(locale, "en-US"),
 		CVSSVersion:   cvss,
 		LogoPath:      logoPath,
 		Personnel:     personnel,
 		Findings:      findings,
 		AssetCounts:   counts,
 		SkillDir:      s.skillDir,
-		DataDir:       s.dataDir, // 用于客户报告脱敏内部 scratch 路径
+		DataDir:       s.dataDir, // used to redact internal scratch paths in the client report
 	}
 }
 

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
-	_ "image/gif" // 注册 gif 解码器
+	_ "image/gif" // register the gif decoder
 	"image/jpeg"
 	"image/png"
 	"io"
@@ -19,22 +19,22 @@ import (
 	"artemis/report"
 )
 
-// 漏洞证据截图上传/展示/管理。文件存 dataDir/report_assets/evidence/<node_id>/（随 report_assets 备份）；
-// 发现页 <img> 经 /api/findings/{id}/evidence/{file} 取图（cookie 鉴权，同 logo）；报告/MD 侧按磁盘路径内嵌。
+// Vulnerability evidence screenshots: upload/display/management. Files are stored under dataDir/report_assets/evidence/<node_id>/ (backed up with report_assets);
+// the findings page <img> fetches images via /api/findings/{id}/evidence/{file} (cookie auth, same as logo); the report/MD side embeds them by disk path.
 //
-// 安全基线（本身是安全平台，上传点不能成为恶意文件入口）：
-//   - 不信任扩展名/客户端 MIME：按内容判定类型 + 解码校验是真图片 + 重编码（剥离追加/内嵌载荷、
-//     EXIF、polyglot），统一落盘为干净 png/jpg；
-//   - 解压炸弹防护：先读 DecodeConfig 校验尺寸上限再整幅解码；
-//   - 取图响应强制 X-Content-Type-Options: nosniff + 固定图片 Content-Type + inline，杜绝存储型 XSS。
+// Security baseline (this is itself a security platform, so the upload point must not become an entry for malicious files):
+//   - do not trust the extension/client MIME: determine the type from content + verify it is a real image by decoding + re-encode (stripping appended/embedded payloads,
+//     EXIF, polyglot), writing a clean png/jpg uniformly to disk;
+//   - decompression-bomb protection: read DecodeConfig to check the size cap before fully decoding;
+//   - the image response forces X-Content-Type-Options: nosniff + a fixed image Content-Type + inline, eliminating stored XSS.
 
 const (
-	evidenceMaxBytes  = 16 << 20   // 单图 16MB
-	evidenceMaxPixels = 50_000_000 // 5000 万像素上限（防解压炸弹）
+	evidenceMaxBytes  = 16 << 20   // 16MB per image
+	evidenceMaxPixels = 50_000_000 // 50-million-pixel cap (decompression-bomb guard)
 	evidenceMaxDim    = 20000
 )
 
-// sanitizeImage 按内容校验并重编码图片；仅接受 png/jpeg/gif，统一输出 png（或 jpg）。
+// sanitizeImage validates and re-encodes an image by content; accepts only png/jpeg/gif and outputs png (or jpg) uniformly.
 func sanitizeImage(raw []byte) (out []byte, ext string, err error) {
 	ct := http.DetectContentType(raw)
 	switch ct {
@@ -67,17 +67,17 @@ func sanitizeImage(raw []byte) (out []byte, ext string, err error) {
 	return buf.Bytes(), ".png", nil
 }
 
-// evidenceDir 返回某漏洞证据文件目录（绝对路径）。
+// evidenceDir returns a vulnerability's evidence-file directory (absolute path).
 func (s *Server) evidenceDir(nodeID int64) string {
 	return filepath.Join(s.dataDir, "report_assets", "evidence", strconv.FormatInt(nodeID, 10))
 }
 
-// evidenceURL 构造前端取图 URL。
+// evidenceURL builds the frontend image-fetch URL.
 func evidenceURL(nodeID int64, filename string) string {
 	return fmt.Sprintf("/api/findings/%d/evidence/%s", nodeID, filename)
 }
 
-// POST /api/findings/{id}/evidence — multipart "file" + 可选 caption / step_index。
+// POST /api/findings/{id}/evidence: multipart "file" + optional caption / step_index.
 func (s *Server) uploadFindingEvidence(w http.ResponseWriter, r *http.Request) {
 	pg := s.pg(w)
 	if pg == nil {
@@ -98,7 +98,7 @@ func (s *Server) uploadFindingEvidence(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
-	// 读入内存(限 16MB)→内容级校验+重编码，不信任扩展名/客户端 MIME。
+	// read into memory (16MB limit) -> content-level validation + re-encode, not trusting the extension/client MIME.
 	raw, err := io.ReadAll(io.LimitReader(file, evidenceMaxBytes+1))
 	if err != nil {
 		writeErr(w, 400, "lettura del file fallita")
@@ -126,12 +126,12 @@ func (s *Server) uploadFindingEvidence(w http.ResponseWriter, r *http.Request) {
 	caption := strings.TrimSpace(r.FormValue("caption"))
 	stepIndex, _ := strconv.Atoi(r.FormValue("step_index"))
 	if caption == "" {
-		// 图注自动填充：没手填就用 agent 就地记录的该步复现文案派生一句（可编辑、无额外 LLM 调用）。
+		// auto-fill the caption: if none was entered manually, derive one from the reproduction text the agent recorded in place for that step (editable, no extra LLM call).
 		caption = s.deriveEvidenceCaption(nodeID, stepIndex)
 	}
 	ev, err := pg.CreateFindingEvidence(nodeID, name, caption, stepIndex)
 	if err != nil {
-		_ = os.Remove(filepath.Join(dir, name)) // 回滚落盘
+		_ = os.Remove(filepath.Join(dir, name)) // roll back the on-disk write
 		writeErr(w, 500, "salvataggio fallito: "+err.Error())
 		return
 	}
@@ -139,8 +139,8 @@ func (s *Server) uploadFindingEvidence(w http.ResponseWriter, r *http.Request) {
 }
 
 // deriveEvidenceCaption builds a default figure caption for an evidence shot from the
-// agent-written reproduction step it belongs to（步骤N：该步证明了什么）——图注即由 agent
-// 已记录的复现文案自动生成，不额外调 LLM，仍可人工编辑。step 0（概览）或该漏洞无此步时返回 ""。
+// agent-written reproduction step it belongs to (step N: what that step proved): the caption is generated automatically from the
+// reproduction text the agent already recorded, with no extra LLM call, and can still be edited manually. Returns "" for step 0 (overview) or when the vulnerability has no such step.
 func (s *Server) deriveEvidenceCaption(nodeID int64, stepIndex int) string {
 	if stepIndex <= 0 || s.m == nil || s.m.pg == nil {
 		return ""
@@ -161,11 +161,11 @@ func (s *Server) deriveEvidenceCaption(nodeID int64, stepIndex int) string {
 	if text == "" {
 		return ""
 	}
-	text = strings.SplitN(text, "\n", 2)[0] // 收敛到一行，适合缩略图下的图注
+	text = strings.SplitN(text, "\n", 2)[0] // collapse to a single line, suitable for the caption under the thumbnail
 	return clipUTF8(fmt.Sprintf("passo %d: %s", stepIndex, text), 120)
 }
 
-// GET /api/findings/{id}/evidence — 列出某漏洞全部证据（带取图 url）。
+// GET /api/findings/{id}/evidence: list all of a vulnerability's evidence (with image-fetch urls).
 func (s *Server) listFindingEvidence(w http.ResponseWriter, r *http.Request) {
 	pg := s.pg(w)
 	if pg == nil {
@@ -188,7 +188,7 @@ func (s *Server) listFindingEvidence(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"items": out})
 }
 
-// PATCH /api/findings/{id}/evidence/{eid} — 改图注 / 对应步骤 / 排序。
+// PATCH /api/findings/{id}/evidence/{eid}: edit the caption / associated step / ordering.
 func (s *Server) updateFindingEvidence(w http.ResponseWriter, r *http.Request) {
 	pg := s.pg(w)
 	if pg == nil {
@@ -215,7 +215,7 @@ func (s *Server) updateFindingEvidence(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
-// DELETE /api/findings/{id}/evidence/{eid} — 删记录 + 盘文件。
+// DELETE /api/findings/{id}/evidence/{eid}: delete the record + the disk file.
 func (s *Server) deleteFindingEvidence(w http.ResponseWriter, r *http.Request) {
 	pg := s.pg(w)
 	if pg == nil {
@@ -239,7 +239,7 @@ func (s *Server) deleteFindingEvidence(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"deleted": eid})
 }
 
-// GET /api/findings/{id}/evidence/{file} — 取证据图（base name，防穿越；cookie 鉴权同 logo）。
+// GET /api/findings/{id}/evidence/{file}: fetch an evidence image (base name, path-traversal guard; cookie auth same as logo).
 func (s *Server) serveFindingEvidence(w http.ResponseWriter, r *http.Request) {
 	nodeID, ok := pathInt(r, "id")
 	if !ok {
@@ -247,7 +247,7 @@ func (s *Server) serveFindingEvidence(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	file := filepath.Base(r.PathValue("file"))
-	// 固定图片 Content-Type + 禁嗅探 + 内联：即使磁盘上文件被篡改，浏览器也不会当作 HTML/脚本执行。
+	// fixed image Content-Type + no-sniff + inline: even if the file on disk is tampered with, the browser won't execute it as HTML/script.
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	switch strings.ToLower(filepath.Ext(file)) {
 	case ".png":

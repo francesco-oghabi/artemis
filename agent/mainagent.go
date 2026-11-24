@@ -39,9 +39,9 @@ func (m *MainAgent) SetProxy(addr, caCert string) { m.proxyAddr, m.proxyCACert =
 // SetWebSearch selects the web_search backend for the main agent (off by default).
 func (m *MainAgent) SetWebSearch(o WebSearchOpts) { m.webSearch = o }
 
-// mainAgentDefaultTmpl is the built-in EDITABLE body (段 [A]) of the main agent
-// prompt, seeded into agent_prompts. Goal is a {{.Goal}} template var; the 中间
-// 产物输出规约 tail is code-owned (artifactSpec), appended after rendering.
+// mainAgentDefaultTmpl is the built-in EDITABLE body (section [A]) of the main agent
+// prompt, seeded into agent_prompts. Goal is a {{.Goal}} template var; the
+// intermediate-artifact output convention tail is code-owned (artifactSpec), appended after rendering.
 const mainAgentDefaultTmpl = `You are the "main agent" of an authorized penetration-testing system, the interface to the human operator. You do not explore yourself, nor do you autonomously and continuously generate intents (that is the planner's job). Your responsibilities:
 
 1. Observe: use graph_overview / list_findings / list_facts / list_assets / get_worker_output to answer the human's questions about current progress.
@@ -71,7 +71,7 @@ func (m *MainAgent) Chat(ctx context.Context, taskID int64, as *db.AssetStore, t
 	}
 	tsx.SetTaskID(taskID)
 	tsx.SetNotify(notify) // add_hint wakes this task's planner (debounced)
-	// 领域工具 + 基础默认工具集（Read/Write/Edit/MultiEdit/LS/Glob/Grep/Bash）
+	// Domain tools + the base default toolset (Read/Write/Edit/MultiEdit/LS/Glob/Grep/Bash)
 	base := append(tsx.MainAgentTools(), actool.DefaultTools()...)
 	tools, def, cleanup := AugmentTools(ctx, "mainagent", base)
 	defer cleanup()
@@ -84,21 +84,21 @@ func (m *MainAgent) Chat(ctx context.Context, taskID int64, as *db.AssetStore, t
 		DeferredTools:   def.Deferred,
 		UnlockSet:       def.Unlock,
 		PermissionMode:  permission.ModeBypass,
-		EnableWebFetch:  true, // 走记录代理留痕；载入代理 CA 验证 MITM 重签的 HTTPS 证书
+		EnableWebFetch:  true, // route through the recording proxy to leave a trace; load the proxy CA to verify the MITM-resigned HTTPS certificate
 		WebFetchProxy:   m.proxyAddr,
 		WebFetchCACert:  m.proxyCACert,
-		// 联网搜索(可选)。ddgs 无需 key；brave-free 需 BraveKey；tavily 需 TavilyKey。
-		// WebSearchProxy 是独立出口代理(http/https/socks5)，与记录流量的 MITM 代理无关；空则直连。
+		// Web search (optional). ddgs needs no key; brave-free needs BraveKey; tavily needs TavilyKey.
+		// WebSearchProxy is a separate egress proxy (http/https/socks5), unrelated to the traffic-recording MITM proxy; empty = direct.
 		EnableWebSearch:    m.webSearch.Enabled,
 		WebSearchBackend:   m.webSearch.Backend,
 		BraveSearchAPIKey:  m.webSearch.BraveKey,
 		TavilySearchAPIKey: m.webSearch.TavilyKey,
 		WebSearchProxy:     m.webSearch.Proxy,
-		BashEnv:           proxyEnv(m.proxyAddr, m.proxyCACert), // Bash 子命令默认走代理+信任 CA
+		BashEnv:           proxyEnv(m.proxyAddr, m.proxyCACert), // Bash subcommands route through the proxy and trust its CA by default
 		MaxTurns:          m.maxTurns,                           // 0 = unlimited (configurable in agent management)
 		Compaction:        compactionConfig(m.window),           // long chats stay within the window
-		Todos:             actool.NewTodoStore(),                // 会话级临时待办（TodoWrite），纯规划用，退出即丢
-		// 命中预算(步数)→ SDK 跑收尾:向用户输出一句进展总结。Prompt 与收尾轮数可后台编辑(默认 5 轮)。
+		Todos:             actool.NewTodoStore(),                // session-scoped temporary to-dos (TodoWrite), purely for planning, discarded on exit
+		// On hitting the budget (step count) -> the SDK runs a wrap-up: output one sentence of progress summary to the user. The prompt and the wrap-up turn count are editable in the admin UI (default 5 rounds).
 		Settlement: wrapupSettlement("mainagent", nil),
 	}
 	if m.tx != nil { // persist raw human↔AI conversation; one accumulating file per task

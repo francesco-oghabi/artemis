@@ -9,7 +9,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// 平台权限管理 API（/api/rbac/*）。
+// Platform permission management API (/api/rbac/*).
 
 type rbacUserView struct {
 	db.RBACUser
@@ -21,7 +21,7 @@ type rbacRoleView struct {
 	Permissions []string `json:"permissions"`
 }
 
-// GET /api/rbac/me —— 当前登录用户的身份 + 角色 + 权限。
+// GET /api/rbac/me: currently logged-in user's identity + roles + permissions.
 func (s *Server) rbacMe(w http.ResponseWriter, r *http.Request) {
 	acc := CurrentAccess(r)
 	if acc == nil {
@@ -43,7 +43,7 @@ func (s *Server) rbacMe(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GET /api/rbac/metadata —— 权限目录 + 角色（管理 UI 用）。
+// GET /api/rbac/metadata: permission catalog + roles (for the management UI).
 func (s *Server) rbacMetadata(w http.ResponseWriter, r *http.Request) {
 	pg := s.pg(w)
 	if pg == nil {

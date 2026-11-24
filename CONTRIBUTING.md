@@ -1,4 +1,4 @@
-# Contributing to Artemis
+# Contributing to OpenArtemis
 
 Contributions of code, docs, translations, and issue reports are welcome.
 
@@ -50,7 +50,16 @@ binary to `dist/amd64/artemis`, builds the runtime image, and runs
 2. Make your change, keep the build green.
 3. Open a Pull Request describing the motivation and scope.
 
+## Code of Conduct
+
+This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md). By
+participating you are expected to uphold it. Report unacceptable behavior to
+francesco@oghabi.it.
+
+To report a security vulnerability in OpenArtemis itself, see
+[SECURITY.md](SECURITY.md) (do not open a public issue).
+
 ## License
 
-Artemis is licensed under **AGPL-3.0**. By contributing, you agree that your
+OpenArtemis is licensed under **AGPL-3.0**. By contributing, you agree that your
 contributions are licensed under the same terms.

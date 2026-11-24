@@ -28,12 +28,12 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { AgentDetail, AgentTrigger, LLMProfile, MCPServer, PromptVar, PromptVersion, Settings, SkillItem, Tool } from "@/lib/types";
 
-// Traffic tools are host tools gated by the global 流量捕获 switch: bindable, but
+// Traffic tools are host tools gated by the global traffic-capture switch: bindable, but
 // only usable when capture is on. Keep this list in sync with traffic.SeedToolMetas.
 const TRAFFIC_TOOL_KEYS = new Set(["traffic_search", "traffic_get"]);
 
 // AgentEditor is the tabbed editor for one agent, used inside the agents-page
-// drawer (and reused full-page for deep links). Tabs: 配置与提示词 / MCP / Skill /
+// drawer (and reused full-page for deep links). Tabs: Config & Prompt / MCP / Skill /
 // Tools. Config + prompt save as before; visibility + tool bindings toggle live.
 export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?: () => void }) {
   const { t: tr } = useTranslation();
@@ -55,13 +55,13 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
   const [runSecs, setRunSecs] = React.useState("600");
   const [webSearch, setWebSearch] = React.useState(false);
   const [interactiveShell, setInteractiveShell] = React.useState(false);
-  const [llmProfileId, setLlmProfileId] = React.useState("0"); // "0" = 用全局激活配置(分级绑定)
+  const [llmProfileId, setLlmProfileId] = React.useState("0"); // "0" = use the global active profile (tiered binding)
   const [profiles, setProfiles] = React.useState<LLMProfile[]>([]);
   const [wrapup, setWrapup] = React.useState("");
   const [wrapupDefault, setWrapupDefault] = React.useState("");
   const [wrapupTurns, setWrapupTurns] = React.useState("0");
   const [wrapupTurnsDefault, setWrapupTurnsDefault] = React.useState(5);
-  // 任务级超时收尾词(仅 worker/planner)
+  // task-level timeout finalization prompt (worker/planner only)
   const [ttSupported, setTtSupported] = React.useState(false);
   const [ttWrapup, setTtWrapup] = React.useState("");
   const [ttWrapupDefault, setTtWrapupDefault] = React.useState("");
@@ -76,7 +76,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
     api.settings().then(setSettings).catch(() => {});
     api.llmProfiles().then(setProfiles).catch(() => {});
   }, []);
-  // global gates: traffic tools need 流量捕获, web search needs the master switch.
+  // global gates: traffic tools need traffic capture, web search needs the master switch.
   const captureOn = !!settings?.traffic_capture;
   const webSearchGlobalOn = !!settings?.web_search_enabled;
 
@@ -235,7 +235,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
         enabled: t.enabled,
       });
       toast.success(on ? tr("agentEditor.toast.toolUnbound", { key: t.key }) : tr("agentEditor.toast.toolBound", { key: t.key }));
-      onSaved?.(); // refresh the list so the card's 工具 count stays in sync
+      onSaved?.(); // refresh the list so the card's tool count stays in sync
     } catch (e) {
       toast.error(tr("agentEditor.toast.toolBindFailed", { msg: (e as Error).message }));
       reload();
@@ -252,7 +252,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
   // web search applies to every conversational/executing agent except the one-shot
   // goals decomposer; it's gated by the global master switch.
   const showWebSearch = agentKey !== "goals";
-  // interactive shell (持久 PTY 会话工具族) 同样对除 goals 外的 agent 开放;无全局门控。
+  // interactive shell (the persistent PTY session tool family) is likewise available to every agent except goals; no global gate.
   const showInteractiveShell = agentKey !== "goals";
   // triggers (P3) only attach to custom agents.
   const isCustom = !!detail && !detail.agent?.builtin;
@@ -268,7 +268,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
         {isCustom && <TabsTrigger value="triggers">{tr("agentEditor.tabs.triggers")}</TabsTrigger>}
       </TabsList>
 
-      {/* 配置 + 提示词 */}
+      {/* Config + Prompt */}
       <TabsContent value="prompt" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <div className="grid gap-4">
           {(showConfig || showWebSearch || showInteractiveShell) && (
@@ -404,7 +404,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
                   <span className="text-muted-foreground truncate flex-1">{ver.note}</span>
                   {ver.ts && (
                     <span className="text-muted-foreground/60 shrink-0 tabular-nums">
-                      {new Date(ver.ts).toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                      {new Date(ver.ts).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
                     </span>
                   )}
                   <Button variant="ghost" size="icon-sm" className="size-6 shrink-0" onClick={() => setViewVer(ver)}>
@@ -423,7 +423,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
             </ul>
           </div>
 
-          {/* 查看版本 dialog */}
+          {/* View version dialog */}
           <Dialog open={!!viewVer} onOpenChange={(o) => { if (!o) setViewVer(null); }}>
             <DialogContent className="sm:max-w-2xl">
               <DialogHeader>
@@ -437,7 +437,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
                   {viewVer?.note || tr("agentEditor.versions.noNote")}
                   {viewVer?.ts && (
                     <span className="ml-2 text-muted-foreground/60">
-                      {new Date(viewVer.ts).toLocaleString("zh-CN")}
+                      {new Date(viewVer.ts).toLocaleString("en-US")}
                     </span>
                   )}
                 </DialogDescription>
@@ -462,7 +462,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
             </DialogContent>
           </Dialog>
 
-          {/* 版本对比 dialog */}
+          {/* Version diff dialog */}
           <Dialog open={!!diffVer} onOpenChange={(o) => { if (!o) setDiffVer(null); }}>
             <DialogContent className="sm:max-w-3xl">
               <DialogHeader>
@@ -480,7 +480,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
         </div>
       </TabsContent>
 
-      {/* 收尾提示词 */}
+      {/* Finalization prompt */}
       <TabsContent value="wrapup" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <div className="grid gap-3">
           <p className="text-muted-foreground text-xs leading-relaxed">
@@ -573,7 +573,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
         </div>
       </TabsContent>
 
-      {/* MCP 可见性 */}
+      {/* MCP visibility */}
       <TabsContent value="mcp" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <p className="text-muted-foreground mb-3 text-xs">{tr("agentEditor.mcp.hint")}</p>
         <div className="grid gap-2">
@@ -588,7 +588,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
         </div>
       </TabsContent>
 
-      {/* Skill 可见性 */}
+      {/* Skill visibility */}
       <TabsContent value="skill" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <p className="text-muted-foreground mb-3 text-xs">{tr("agentEditor.skill.hint")}</p>
         <div className="grid gap-2">
@@ -603,13 +603,13 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
         </div>
       </TabsContent>
 
-      {/* Tools 绑定 */}
+      {/* Tools binding */}
       <TabsContent value="tools" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <p className="text-muted-foreground mb-3 text-xs">{tr("agentEditor.tools.hint")}</p>
         <div className="grid gap-2">
           {tools.map((t) => {
             const isTraffic = TRAFFIC_TOOL_KEYS.has(t.key);
-            const gated = isTraffic && !captureOn; // traffic tools need 流量捕获 on
+            const gated = isTraffic && !captureOn; // traffic tools need traffic capture on
             return (
               <label
                 key={t.key}
@@ -646,7 +646,7 @@ export function AgentEditor({ agentKey, onSaved }: { agentKey: string; onSaved?:
         </div>
       </TabsContent>
 
-      {/* 触发(P3, 仅自定义 agent) */}
+      {/* Triggers (P3, custom agents only) */}
       {isCustom && (
         <TabsContent value="triggers" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
           <AgentTriggersTab agentKey={agentKey} />
@@ -711,7 +711,7 @@ function DiffView({ oldText, newText }: { oldText: string; newText: string }) {
 }
 
 // AgentTriggersTab manages a custom agent's P3 triggers: list + add + delete.
-// Each trigger fires (定时/发现finding/目标达成，可多选) → a new conversation runs
+// Each trigger fires (scheduled / on finding / on goal met, multi-select) → a new conversation runs
 // in parallel with the base user message + auto context appended by the backend.
 function AgentTriggersTab({ agentKey }: { agentKey: string }) {
   const { t: tr } = useTranslation();
@@ -812,11 +812,11 @@ function AgentTriggersTab({ agentKey }: { agentKey: string }) {
         {tr("agentEditor.triggers.introPost")}
       </p>
 
-      {/* 新增触发器 */}
+      {/* Add trigger */}
       <div className="grid gap-3 rounded-md border p-3">
         <Label className="text-muted-foreground text-xs">{tr("agentEditor.triggers.addLabel")}</Label>
 
-        {/* 定时 */}
+        {/* Scheduled */}
         <div className="grid gap-1.5">
           <div className="flex items-center gap-2">
             <Label htmlFor="tr-interval" className="text-xs">{tr("agentEditor.triggers.intervalPrefix")}</Label>
@@ -841,7 +841,7 @@ function AgentTriggersTab({ agentKey }: { agentKey: string }) {
           )}
         </div>
 
-        {/* 目标达成 */}
+        {/* Goal met */}
         <div className="grid gap-1.5">
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={onGoalMet} onCheckedChange={(v) => setOnGoalMet(!!v)} /> {tr("agentEditor.triggers.onGoalMetLabel")}
@@ -852,7 +852,7 @@ function AgentTriggersTab({ agentKey }: { agentKey: string }) {
           )}
         </div>
 
-        {/* 任务超时 */}
+        {/* Task timeout */}
         <div className="grid gap-1.5">
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={onTaskTimeout} onCheckedChange={(v) => setOnTaskTimeout(!!v)} /> {tr("agentEditor.triggers.onTaskTimeoutLabel")}
@@ -870,7 +870,7 @@ function AgentTriggersTab({ agentKey }: { agentKey: string }) {
         </div>
       </div>
 
-      {/* 已有触发器 */}
+      {/* Existing triggers */}
       <div className="grid gap-2">
         <Label className="text-muted-foreground text-xs">{tr("agentEditor.triggers.existing")}</Label>
         {triggers.length === 0 && <span className="text-muted-foreground text-xs">{tr("agentEditor.triggers.none")}</span>}

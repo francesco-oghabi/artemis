@@ -93,7 +93,7 @@ func renderPlannerTodos(items []actool.Todo) string {
 }
 
 // renderDoneIntents surfaces the intent(s) whose completion triggered this round
-// so the planner looks first at their fresh yields (in the态势 below) before
+// so the planner looks first at their fresh yields (in the situation below) before
 // deciding whether a new direction opened up. Empty for non-completion wakes.
 func renderDoneIntents(ids []int64) string {
 	if len(ids) == 0 {
@@ -119,7 +119,7 @@ func renderGraphOverview(data map[string]any) string {
 	return "\n\n[This round's situation (graph_overview prefetched, equivalent to the return of calling that tool yourself; call node_detail/list_facts etc. as needed for details)]:\n" + string(b)
 }
 
-// plannerDefaultTmpl is the built-in EDITABLE body (段 [A]) of the planner prompt,
+// plannerDefaultTmpl is the built-in EDITABLE body (section [A]) of the planner prompt,
 // seeded into agent_prompts. Goal is a {{.Goal}} template var; the artifact-output
 // tail is code-owned (artifactSpec) and appended by plannerSystem after rendering.
 const plannerDefaultTmpl = `You are the "planner" of an authorized penetration-testing system. You are woken up frequently (woken whenever the graph changes). Your responsibilities: read the situation, judge the goals, and **only when there genuinely is a new uncovered direction** add exploration intents.
@@ -187,23 +187,27 @@ func (p *Planner) Plan(ctx context.Context, taskID int64, as *db.AssetStore, ts 
 	if origin, _ := ts.OriginFactID(); origin > 0 {
 		tsx.SetOwnerNode(origin) // planner-side anchors default to the task root (origin fact)
 	}
-	// 领域工具 + 基础默认工具集（Read/Write/Edit/MultiEdit/LS/Glob/Grep/Bash）
+	// Domain tools + the base default toolset (Read/Write/Edit/MultiEdit/LS/Glob/Grep/Bash)
 	base := append(tsx.PlannerTools(), actool.DefaultTools()...)
 	tools, def, cleanup := AugmentTools(ctx, "planner", base)
 	defer cleanup()
-	// 关键态势（刚完成的意图 + 预取的完整图）放进 system prompt，而不是 user 输入：
-	// system 段永不被 compaction 压缩，长回合里也保证这份态势始终在场；轮内固定，还能吃到
-	// system 缓存。它落在指令之后、deferred 工具块之前（deferredSystem 保证块在最后）。
+	// The key situation (just-completed intents + the prefetched full graph) goes into the
+	// system prompt, not the user input: the system section is never compacted, so this
+	// situation stays present through long rounds; it is fixed within the round and can also
+	// hit the system cache. It lands after the instructions and before the deferred-tools
+	// block (deferredSystem guarantees the block stays last).
 	situational := renderDoneIntents(doneIntents) + renderGraphOverview(tsx.graphOverviewData())
-	// 任务级 deadline / 终局模式(经 ctx 注入,见 taskclock.go)。终局那一轮把任务超时
-	// planner 收尾词作为【本轮操作指令】直接注入 system,让它只做最后目标判定、不产新意图。
+	// Task-level deadline / endgame mode (injected via ctx, see taskclock.go). On the endgame
+	// round, the task-timeout planner wrap-up text is injected directly into system as [this
+	// round's operating instructions], so it only does the final goal judgment and produces no new intents.
 	tc := taskClockFrom(ctx)
 	if tc.Final {
 		situational += "\n\n[Task endgame wrap-up (special instruction for this round, overriding the regular planning process above)]:" + resolveTaskTimeoutWrapup("planner")
 	}
 	system, boundary := deferredSystem(plannerSystem(goal, p.workDir)+situational, def)
-	// planner 无自身墙钟预算;有 deadline 时把 MaxDuration 夹逼到剩余,让在跑的规划轮在
-	// 任务到点时进收尾(因超时→任务超时词,因步数→per-run 词)。
+	// The planner has no wall-clock budget of its own; when there is a deadline, clamp
+	// MaxDuration to the remaining time so an in-flight planning round enters wrap-up when the
+	// task hits its deadline (on timeout -> task-timeout text, on step count -> per-run text).
 	maxDur, clamped := clampMaxDuration(tc.DeadlineUnix, 0)
 	settle := wrapupSettlement("planner", nil)
 	if tc.DeadlineUnix > 0 {
@@ -217,36 +221,40 @@ func (p *Planner) Plan(ctx context.Context, taskID int64, as *db.AssetStore, ts 
 		DeferredTools:   def.Deferred,
 		UnlockSet:       def.Unlock,
 		PermissionMode:  permission.ModeBypass,
-		EnableWebFetch:  true, // 走记录代理留痕；载入代理 CA 验证 MITM 重签的 HTTPS 证书
+		EnableWebFetch:  true, // route through the recording proxy to leave a trace; load the proxy CA to verify the MITM-resigned HTTPS certificate
 		WebFetchProxy:   p.proxyAddr,
 		WebFetchCACert:  p.proxyCACert,
-		// 联网搜索(可选)。ddgs 无需 key；brave-free 需 BraveKey；tavily 需 TavilyKey。
-		// WebSearchProxy 是独立出口代理(http/https/socks5)，与记录流量的 MITM 代理无关；空则直连。
+		// Web search (optional). ddgs needs no key; brave-free needs BraveKey; tavily needs TavilyKey.
+		// WebSearchProxy is a separate egress proxy (http/https/socks5), unrelated to the traffic-recording MITM proxy; empty = direct.
 		EnableWebSearch:    p.webSearch.Enabled,
 		WebSearchBackend:   p.webSearch.Backend,
 		BraveSearchAPIKey:  p.webSearch.BraveKey,
 		TavilySearchAPIKey: p.webSearch.TavilyKey,
 		WebSearchProxy:     p.webSearch.Proxy,
-		BashEnv:           proxyEnv(p.proxyAddr, p.proxyCACert), // Bash 子命令默认走代理+信任 CA
+		BashEnv:           proxyEnv(p.proxyAddr, p.proxyCACert), // Bash subcommands route through the proxy and trust its CA by default
 		MaxTurns:          p.maxTurns,                           // 0 = unlimited (configurable in agent management)
-		MaxDuration:       maxDur,                               // 0=不限;有 deadline 时=距 deadline 剩余
+		MaxDuration:       maxDur,                               // 0 = unlimited; with a deadline = time remaining until the deadline
 		Compaction:        compactionConfig(p.window),
-		// 跨唤醒共享的规划待办：让串行链在多轮之间保留（session 是新的，store 不是）。
+		// Planning to-dos shared across wake-ups: keep a serial chain alive across rounds (the session is new, the store is not).
 		Todos: p.todoFor(ts.ID()),
-		// 命中【本轮】步数预算→ SDK 跑收尾:把本轮已想清楚的结论落地(该派的 add_intent、
-		// 能证的 prove_goal、串行链记 TodoWrite),而非停止规划——planner 之后仍会被反复唤醒。
-		// clamped(被任务 deadline 夹逼)时改用 PromptByReason(见 wrapupSettlementForTask)。
+		// On hitting [this round's] step budget -> the SDK runs a wrap-up: land the conclusions
+		// already worked out this round (the add_intent calls to dispatch, the provable prove_goal
+		// calls, recording a serial chain with TodoWrite), rather than stopping planning: the
+		// planner will still be woken repeatedly afterwards.
+		// When clamped (by the task deadline) it switches to PromptByReason (see wrapupSettlementForTask).
 		Settlement: settle,
 	}
 	if p.tx != nil { // persist raw LLM conversation; one accumulating file per task's planner
 		opts.Transcript = p.tx
 		opts.SessionID = fmt.Sprintf("exp%d-planner", ts.ID())
 	}
-	// 态势（刚完成的意图 + 完整图）已在上面拼进 system prompt（抗压缩、轮内常驻）。这里
-	// 的 user 输入只留指令 + 跨唤醒待办（todo 是模型自己的规划便签，可再生，放 user 即可）。
+	// The situation (just-completed intents + full graph) has already been folded into the
+	// system prompt above (compaction-resistant, resident for the whole round). The user input
+	// here keeps only the instructions + the cross-wake-up to-dos (the todo is the model's own
+	// planning scratchpad, regenerable, so the user input is fine for it).
 	input := "The graph has changed, please plan the next step: read the situation in the system prompt above and judge the goals. **If this round has no uncovered new direction, just end directly (generating 0 intents is normal and common, especially right after dispatching intents while waiting for worker output). Never call goal_met just to \"end this round\": goal_met will [immediately end the whole task], so call it only when you have confirmed the goal is [genuinely met] (the target result obtained / the target vulnerability confirmed); if not met, mark them one by one with prove_goal, or end directly without calling anything.**" +
 		renderPlannerTodos(opts.Todos.List())
-	// 有 deadline 夹逼时加硬 ctx 兜底(软预算 + grace),防单轮卡死绕过轮边界软超时。
+	// When clamped by a deadline, add a hard ctx backstop (soft budget + grace) to stop a single stuck round from bypassing the turn-boundary soft timeout.
 	runCtx := ctx
 	if maxDur > 0 {
 		var cancel context.CancelFunc

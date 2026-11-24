@@ -24,7 +24,7 @@ export default function LoginPage() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // 已登录直接进主界面（静态导出下无 middleware 代劳这层跳转）。
+    // Already logged in → go straight to the main UI (under static export there's no middleware to handle this redirect).
     if (auth.getToken()) {
       router.replace("/function/tasks");
       return;
@@ -59,17 +59,17 @@ export default function LoginPage() {
       <div className="absolute top-4 right-4 z-20">
         <LanguageSwitcher />
       </div>
-      {/* Left brand panel — 特色背景图 login.jpg + Artemis 品牌 */}
+      {/* Left brand panel — feature background image login.jpg + OpenArtemis branding */}
       <div className="relative hidden flex-col items-center justify-center overflow-hidden p-12 text-center lg:flex lg:w-1/2">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/login.jpg" alt="" className="absolute inset-0 size-full object-cover" />
-        {/* 暗色渐变遮罩：保证 logo/文字清晰可读，并统一到品牌深蓝 */}
+        {/* Dark gradient overlay: ensures the logo/text stay clearly readable, unified to the brand deep blue */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#0A1126]/90 via-[#0A1126]/55 to-[#0A1126]/90" />
         <div className="relative z-10 flex flex-col items-center gap-5 text-white">
           <ArtemisLogo className="size-24 drop-shadow-xl" />
           <div className="space-y-1.5">
             <div className="text-4xl font-bold tracking-tight">
-              Anti<span className="bg-gradient-to-r from-[#4F6BF6] to-[#7C3AED] bg-clip-text text-transparent">Fox</span>
+              Open<span className="bg-gradient-to-r from-[#4F6BF6] to-[#7C3AED] bg-clip-text text-transparent">Artemis</span>
             </div>
             <div className="text-xs font-medium uppercase tracking-[0.25em] text-white/70">
               AI Autonomous Pentest Platform

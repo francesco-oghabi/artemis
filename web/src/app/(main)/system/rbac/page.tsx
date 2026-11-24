@@ -74,7 +74,7 @@ export default function RbacPage() {
         <h1 className="text-xl font-semibold">{t("rbac.title")}</h1>
       </div>
 
-      {/* 顶部汇总 */}
+      {/* Top summary */}
       <div className="flex flex-wrap gap-2">
         <Badge variant="outline" className="gap-1.5 px-3 py-1.5 text-sm">
           <b className="text-blue-600 dark:text-blue-400">{users.length}</b> {t("rbac.summary.accounts")}
@@ -102,7 +102,7 @@ export default function RbacPage() {
   );
 }
 
-/* ============================ 成员管理 ============================ */
+/* ============================ Member management ============================ */
 
 function MembersTab({
   users, roles, roleName, loading, reload,
@@ -164,7 +164,7 @@ function MembersTab({
                     {u.is_builtin && <span title={t("rbac.member.builtin")}> 🛡️</span>}
                   </td>
                   <td className="text-muted-foreground">{u.display_name || "—"}</td>
-                  <td>{(u.role_ids ?? []).map(roleName).join("、") || "—"}</td>
+                  <td>{(u.role_ids ?? []).map(roleName).join(", ") || "—"}</td>
                   <td>
                     {u.enabled ? (
                       <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400">{t("common.enabled")}</Badge>
@@ -303,7 +303,7 @@ function UserDialog({
   );
 }
 
-/* ============================ 角色管理 ============================ */
+/* ============================ Role management ============================ */
 
 function RolesTab({
   roles, users, permCatalog, loading, reload,
@@ -430,7 +430,7 @@ function RoleDialog({
   const [search, setSearch] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // 按模块分组
+  // Group by module
   const groups = useMemo(() => {
     const g: Record<string, string[]> = {};
     Object.keys(permCatalog).sort().forEach((k) => {

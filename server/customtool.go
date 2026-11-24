@@ -22,12 +22,12 @@ import (
 	"artemis/db"
 )
 
-// 本文件实现自定义工具执行器(docs/自定义工具设计.md)。system=false 的 tools 行按
-// kind 分派:command(渲染命令→复用 Bash 底层 run)、script(仅 Python;写临时文件、
-// stdin=参数 JSON + env TOOL_*、用配置的解释器)、http(原生请求+可设代理)。这些工具
-// 像流量/编排工具一样 seed 不需要(它们本就在 tools 表),经 hostTools 注入、按绑定过滤。
+// This file implements the custom-tool executor (see the custom-tools design doc). tools rows with system=false dispatch by
+// kind: command (render the command -> reuse Bash's underlying run), script (Python only; write a temp file, stdin=params JSON
+// + env TOOL_*, use the configured interpreter), http (native request + optional proxy). These tools need no seeding like the
+// traffic/orchestration tools (they are already in the tools table); they are injected via hostTools and filtered by binding.
 
-// ---------- 自定义工具 CRUD ----------
+// ---------- custom tool CRUD ----------
 
 type customToolReq struct {
 	Key         string          `json:"key"`
@@ -40,7 +40,7 @@ type customToolReq struct {
 	Deferred    bool            `json:"deferred"`
 }
 
-var reToolKey = reAgentKey // 同 agent key 规则:小写字母开头 + 小写字母/数字/下划线
+var reToolKey = reAgentKey // same rule as the agent key: starts with a lowercase letter + lowercase letters/digits/underscores
 
 func (s *Server) pgCreateCustomTool(w http.ResponseWriter, r *http.Request) {
 	pg := s.pg(w)
@@ -107,8 +107,8 @@ func (s *Server) pgUpdateCustomTool(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "kind deve essere command / script / http / shell")
 		return
 	}
-	// 高危类型（宿主机执行）收归 admin：无论改前/改后是否为高危类型，都要求 admin，
-	// 防止 operator 把 http 工具改成 command，或改动一个已存在的 command 工具。
+	// high-risk types (host execution) restricted to admin: require admin whether the type before/after the change is high-risk,
+	// to prevent operator from changing an http tool into a command, or modifying an existing command tool.
 	if (hostExecToolKind(req.Kind) || hostExecToolKind(existing.Kind)) && !isAdmin(r) {
 		writeErr(w, 403, "solo l'amministratore può gestire strumenti che eseguono comandi/script sulla macchina host (command/script/shell)")
 		return
@@ -163,7 +163,7 @@ func (s *Server) pgTestCustomTool(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "corpo della richiesta non valido")
 		return
 	}
-	// 试运行与真实调用走同一执行器，command/script 会在宿主机跑命令——收归 admin。
+	// dry-run and real invocation go through the same executor; command/script run commands on the host, so restricted to admin.
 	if hostExecToolKind(req.Kind) && !isAdmin(r) {
 		writeErr(w, 403, "solo l'amministratore può eseguire in prova gli strumenti di tipo command/script")
 		return
@@ -193,7 +193,7 @@ func (s *Server) pgTestCustomTool(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"output": res.Flatten(), "is_error": res.IsError})
 }
 
-// ---------- Python 解释器(检测 + 入库 + 覆盖) ----------
+// ---------- Python interpreter (detect + store + override) ----------
 
 const settingPythonInterp = "python_interpreter"
 
@@ -224,11 +224,11 @@ func (s *Server) seedPythonInterpreter() {
 	}
 	if p := detectPython(); p != "" {
 		_ = s.m.pg.SetSetting(settingPythonInterp, p)
-		log.Printf("[custom-tool] 自动检测到 python 解释器: %s", p)
+		log.Printf("[custom-tool] auto-detected python interpreter: %s", p)
 	}
 }
 
-// ---------- exec 规格 ----------
+// ---------- exec spec ----------
 
 type commandExec struct {
 	Command   string `json:"command"`
@@ -255,7 +255,7 @@ func timeoutOr(ms, def int) time.Duration {
 	return time.Duration(ms) * time.Millisecond
 }
 
-// ---------- 通用工具构造 ----------
+// ---------- generic tool construction ----------
 
 // customTools builds CoreTools for every user-defined (system=false) tool row.
 // shell-kind tools are environment hints only — they surface in the Bash tool
@@ -276,7 +276,7 @@ func (s *Server) customTools() ([]actool.CoreTool, error) {
 }
 
 // buildCustomTool turns one custom-tool row into a CoreTool. Empty schema → a thin
-// {args:string} (薄壳工具), so command/http templates can use {args}.
+// {args:string} (thin-shell tool), so command/http templates can use {args}.
 func (s *Server) buildCustomTool(t *db.Tool) actool.CoreTool {
 	schema := ensureSchema(t.Schema)
 	key, kind, execRaw := t.Key, t.Kind, t.Exec
@@ -341,7 +341,7 @@ func ensureSchema(raw json.RawMessage) map[string]any {
 	}
 }
 
-// ---------- command:渲染命令 → 复用 Bash 底层 run ----------
+// ---------- command: render the command -> reuse Bash's underlying run ----------
 
 func (s *Server) runCommandTool(ctx context.Context, execRaw json.RawMessage, params map[string]any, tc *actool.ToolContext) (actool.Result, error) {
 	var spec commandExec
@@ -350,8 +350,8 @@ func (s *Server) runCommandTool(ctx context.Context, execRaw json.RawMessage, pa
 		return actool.Errorf("command vuoto"), nil
 	}
 	cmd := renderTemplate(spec.Command, params, shellQuote)
-	// 复用 Bash 也在用的底层 run(经 Bash CoreTool.Call):自动继承安全 floor/超时/
-	// 代理 env/输出溢出。工具与 Bash 平级、共用底层,不经过 Bash 这个工具让模型调。
+	// reuse the underlying run that Bash also uses (via Bash CoreTool.Call): automatically inherits the security floor/timeout/
+	// proxy env/output overflow. The tool is a peer of Bash sharing the same underlying path, without going through the Bash tool for the model to call.
 	bashIn, _ := json.Marshal(map[string]any{"command": cmd})
 	if spec.TimeoutMs > 0 {
 		var cancel context.CancelFunc
@@ -361,7 +361,7 @@ func (s *Server) runCommandTool(ctx context.Context, execRaw json.RawMessage, pa
 	return actool.NewBash().Call(ctx, bashIn, tc)
 }
 
-// ---------- script(仅 Python):临时文件 + stdin JSON + env ----------
+// ---------- script (Python only): temp file + stdin JSON + env ----------
 
 func (s *Server) runScriptTool(ctx context.Context, key string, execRaw json.RawMessage, params map[string]any, tc *actool.ToolContext) (actool.Result, error) {
 	var spec scriptExec
@@ -412,14 +412,14 @@ func execPython(ctx context.Context, interp, key, code string, params map[string
 	defer cancel()
 	c := exec.CommandContext(runCtx, interp, tmp)
 	c.Dir = workDir
-	c.Env = append(os.Environ(), sessionEnv...) // 会话代理 env
-	for k, v := range params {                  // 标量参数镜像成 TOOL_<NAME>
+	c.Env = append(os.Environ(), sessionEnv...) // session proxy env
+	for k, v := range params {                  // scalar params mirrored into TOOL_<NAME>
 		if sv, ok := scalarStr(v); ok {
 			c.Env = append(c.Env, "TOOL_"+strings.ToUpper(k)+"="+sv)
 		}
 	}
 	pj, _ := json.Marshal(params)
-	c.Stdin = bytes.NewReader(pj) // 参数 JSON 走 stdin
+	c.Stdin = bytes.NewReader(pj) // params JSON goes through stdin
 	out, err := c.CombinedOutput()
 	body := string(out)
 	if runCtx.Err() == context.DeadlineExceeded {
@@ -430,7 +430,7 @@ func execPython(ctx context.Context, interp, key, code string, params map[string
 	return body, nil
 }
 
-// ---------- http:原生请求 + 代理 ----------
+// ---------- http: native request + proxy ----------
 
 func (s *Server) runHTTPTool(ctx context.Context, execRaw json.RawMessage, params map[string]any) (actool.Result, error) {
 	var spec httpExec

@@ -36,10 +36,10 @@ func compactIntents(ns []*db.Node, parentsOf, yieldsOf map[int64][]int64) []map[
 			m["asset_ids"] = []any{tg}
 		}
 		if ps := parentsOf[n.ID]; len(ps) > 0 {
-			m["parents"] = ps // 上游：本意图派生自哪些节点（多个事实可共同产生一个意图）
+			m["parents"] = ps // upstream: which nodes this intent derives from (several facts can jointly produce one intent)
 		}
 		if ys := yieldsOf[n.ID]; len(ys) > 0 {
-			m["yields"] = ys // 下游：本意图产生了哪些事实/发现
+			m["yields"] = ys // downstream: which facts/findings this intent produced
 		}
 		out = append(out, m)
 	}
@@ -123,7 +123,7 @@ type WriteCounts struct {
 // "explored but persisted nothing" signal (Total == 0).
 func (w WriteCounts) Total() int { return w.Facts + w.Assets + w.Findings }
 
-// String renders the per-kind breakdown for logs, e.g. "事实1 资产25 漏洞0".
+// String renders the per-kind breakdown for logs, e.g. "facts 1 assets 25 vulns 0".
 func (w WriteCounts) String() string {
 	return fmt.Sprintf("facts %d assets %d vulns %d", w.Facts, w.Assets, w.Findings)
 }
@@ -285,8 +285,8 @@ func (t *ToolSet) graphOverviewData() map[string]any {
 			gsum = append(gsum, map[string]any{"id": g.ID, "state": g.State, "text": p["text"]})
 		}
 		out["goals"] = gsum
-		// hints: 人类/主 agent 通过 add_hint 挂上图的战略提示；folded in so the
-		// planner reads them every round when generating intents (否则只写不读).
+		// hints: strategic hints the human / main agent attached to the graph via add_hint; folded in so the
+		// planner reads them every round when generating intents (otherwise they would be written but never read).
 		hints, _ := t.ts.ListByKind(db.KindHint, 50)
 		hsum := make([]map[string]any, 0, len(hints))
 		for _, h := range hints {
@@ -335,8 +335,8 @@ func (t *ToolSet) graphOverviewData() map[string]any {
 		// via node_detail(id).
 		vulnNodes, _ := t.ts.ListByKind(db.KindFinding, 1000)
 		factNodes, _ := t.ts.ListByKind(db.KindFact, 1000) // newest first
-		out["findings"] = len(vulnNodes)                   // 确认漏洞数（目标判定看它）
-		out["facts"] = len(factNodes)                      // 探索事实/结论数（含否定结论）
+		out["findings"] = len(vulnNodes)                   // count of confirmed vulnerabilities (the goal judgment looks at this)
+		out["facts"] = len(factNodes)                      // count of exploration facts/conclusions (including negative conclusions)
 		recentFacts := make([]map[string]any, 0, 20)
 		for _, n := range factNodes {
 			if len(recentFacts) >= 20 {
@@ -344,10 +344,10 @@ func (t *ToolSet) graphOverviewData() map[string]any {
 			}
 			m := compactNode(n)
 			if from := factFrom[n.ID]; from > 0 {
-				m["from_intent"] = from // 本事实由哪个意图产生
+				m["from_intent"] = from // which intent produced this fact
 			}
-			// confidence 带进概览：让规划者一眼看出哪条结论只是 inferred（尤其否定结论
-			// 别当铁案）；evidence 较长，留给 node_detail(id)。
+			// carry confidence into the overview: so the planner sees at a glance which conclusions are merely
+			// inferred (especially a negative conclusion, don't treat it as settled); evidence is long, left to node_detail(id).
 			var fp map[string]any
 			if json.Unmarshal(n.Payload, &fp) == nil {
 				if c, ok := fp["confidence"].(string); ok && c != "" {
@@ -356,7 +356,7 @@ func (t *ToolSet) graphOverviewData() map[string]any {
 			}
 			recentFacts = append(recentFacts, m)
 		}
-		out["recent_facts"] = recentFacts // 最近事实的 {id, summary, from_intent, confidence?}，详情/证据用 node_detail(id)
+		out["recent_facts"] = recentFacts // recent facts' {id, summary, from_intent, confidence?}; for details/evidence use node_detail(id)
 		// the original task (root) so the planner always has it, not just the
 		// decomposed goals.
 		if description, goal, err := t.ts.Root(); err == nil {
@@ -393,8 +393,8 @@ func (t *ToolSet) listFindings() actool.CoreTool {
 		obj(map[string]any{}),
 		func(context.Context, json.RawMessage) (actool.Result, error) {
 			f, _ := t.ts.ListByKind(db.KindFinding, 500)
-			intentOf, _ := t.ts.FindingIntents() // finding id -> 产生它的 intent id
-			taskID := t.ts.ID()                  // exploration id = 任务 id（本 store 内所有 finding 同属）
+			intentOf, _ := t.ts.FindingIntents() // finding id -> the intent id that produced it
+			taskID := t.ts.ID()                  // exploration id = task id (all findings in this store belong to it)
 			out := make([]map[string]any, 0, len(f))
 			for _, n := range f {
 				m := compactFinding(n)
@@ -446,7 +446,7 @@ func (t *ToolSet) nodeDetail() actool.CoreTool {
 
 // --- planner write tools ---
 
-// intentItem 是 add_intent 批量/单条的一条探索方向。
+// intentItem is one exploration direction in an add_intent batch/single call.
 type intentItem struct {
 	Summary   string            `json:"summary"`
 	AssetIDs  []json.RawMessage `json:"asset_ids"`
@@ -454,10 +454,11 @@ type intentItem struct {
 	Priority  int               `json:"priority"`
 }
 
-// addOneIntent 创建一条意图节点并连上游血缘，返回 id。
-// 约束：意图只能锚在已确认知识上——每个 parent_id 必须是已存在的 fact/finding
-// 节点（不能挂在别的意图/目标/提示上）。顶层全新方向留空 parent_ids，兜底连 origin fact。
-// 这样"每个意图都连到 fact 节点、且是发现驱动而非凭空规划"从创建路径上被强制。
+// addOneIntent creates one intent node, links its upstream lineage, and returns the id.
+// Constraint: an intent can only be anchored on already-confirmed knowledge: each parent_id
+// must be an existing fact/finding node (it cannot hang off another intent/goal/hint). A
+// top-level brand-new direction leaves parent_ids empty and falls back to the origin fact.
+// This enforces, at the creation path, that "every intent links to a fact node and is discovery-driven rather than planned out of thin air".
 // intentClassKeywords maps vuln-class phrasings to a canonical token (checked in
 // order) so differently-worded intents about the same class collapse.
 var intentClassKeywords = []struct{ pat, canon string }{
@@ -537,7 +538,7 @@ func (t *ToolSet) addOneIntent(it intentItem) (int64, error) {
 			}
 		}
 	}
-	// 先校验锚点（建节点前，避免坏锚点留下孤儿意图）。
+	// Validate the anchors first (before creating the node, to avoid a bad anchor leaving an orphan intent).
 	parents := pidList(it.ParentIDs)
 	for _, pidv := range parents {
 		n, err := t.ts.GetNode(pidv)
@@ -590,7 +591,7 @@ func (t *ToolSet) addIntent() actool.CoreTool {
 		func(_ context.Context, in json.RawMessage) (actool.Result, error) {
 			var a struct {
 				Intents    []intentItem `json:"intents"`
-				intentItem              // 单条模式：顶层 summary/asset_ids/parent_ids/priority
+				intentItem              // single-item mode: top-level summary/asset_ids/parent_ids/priority
 			}
 			_ = json.Unmarshal(in, &a)
 			batch := len(a.Intents) > 0
@@ -610,7 +611,7 @@ func (t *ToolSet) addIntent() actool.CoreTool {
 				ids[i] = id
 			}
 
-			if !batch { // 单条：保持原返回
+			if !batch { // single item: keep the original return
 				if e, bad := errs["0"]; bad {
 					return actool.Errorf(e), nil
 				}
@@ -653,8 +654,8 @@ func (t *ToolSet) proveGoal() actool.CoreTool {
 			}
 			_ = t.ts.Link(ev, db.RelProves, goal)
 			_ = t.ts.SetNodeState(goal, "met")
-			// 每标记一个目标 met，就检查本任务是否【所有目标】都已 met；若是，自动判定
-			// 任务完成（置 GoalMet），无需再依赖模型显式调 goal_met。
+			// Each time a goal is marked met, check whether [all goals] of this task are now met; if so,
+			// automatically judge the task complete (set GoalMet), with no further need to rely on the model explicitly calling goal_met.
 			if goals, err := t.ts.ListByKind(db.KindGoal, 1000); err == nil && len(goals) > 0 {
 				allMet := true
 				for _, g := range goals {
@@ -888,7 +889,7 @@ func (t *ToolSet) addFinding() actool.CoreTool {
 					_ = t.ts.Link(intent, db.RelYields, id) // chain: intent -> finding
 				}
 				_, _ = t.ts.AddStandaloneFinding(t.taskID, id, a.VulnClass, a.Severity, a.Summary, a.Evidence, t.worker, anchors)
-				if len(repro) > 2 { // 就地记录的结构化复现过程(agent 测完即填,请求逐字真实)
+				if len(repro) > 2 { // the structured reproduction process recorded in place (filled in by the agent right after testing, requests verbatim and real)
 					_ = t.ts.SetFindingReproduction(id, repro)
 				}
 			} else {
@@ -905,12 +906,12 @@ func (t *ToolSet) addFinding() actool.CoreTool {
 // This is the home for observations and — importantly — negative results
 // ("port closed", "param not injectable", "no login found"). Such conclusions
 // must NOT be stuffed into the asset graph via upsert_asset.
-// factItem 是 record_fact 批量/单条的一条事实。
+// factItem is one fact in a record_fact batch/single call.
 type factItem struct {
 	Summary    string            `json:"summary"`
 	Detail     string            `json:"detail"`
-	Evidence   string            `json:"evidence"`   // 一行关键证据（命令+关键输出行），支撑结论、便于事后核对
-	Confidence string            `json:"confidence"` // observed（直接看到）| inferred（据现象推断）
+	Evidence   string            `json:"evidence"`   // one line of key evidence (command + key output line), supporting the conclusion and easy to double-check afterwards
+	Confidence string            `json:"confidence"` // observed (directly seen) | inferred (deduced from observations)
 	IntentID   json.RawMessage   `json:"intent_id"`
 	AssetIDs   []json.RawMessage `json:"asset_ids"`
 }
@@ -972,8 +973,8 @@ const factDupJaccard = 0.82
 // the count.
 const noProgressFactStop = 4
 
-// recordOneFact 写一条 fact 节点并连到意图（intent→yields→fact）。defaultIntent 为
-// 批量时的默认意图（本条未给 intent_id 时用）。
+// recordOneFact writes one fact node and links it to the intent (intent -> yields -> fact).
+// defaultIntent is the default intent for a batch (used when this item gives no intent_id).
 // noteFactProgress updates the per-intent no-progress counter after a record_fact
 // call and reports whether the worker should now end its run (it is spinning,
 // re-recording with nothing new). anyCreated = the call added at least one NEW
@@ -1062,7 +1063,7 @@ func (t *ToolSet) recordFact() actool.CoreTool {
 		func(_ context.Context, in json.RawMessage) (actool.Result, error) {
 			var a struct {
 				Facts    []factItem `json:"facts"`
-				factItem            // 单条模式 + 批量默认 intent_id
+				factItem            // single-item mode + batch default intent_id
 			}
 			_ = json.Unmarshal(in, &a)
 			batch := len(a.Facts) > 0
@@ -1070,7 +1071,7 @@ func (t *ToolSet) recordFact() actool.CoreTool {
 			if !batch {
 				items = []factItem{a.factItem}
 			}
-			defaultIntent := pid(a.factItem.IntentID) // 顶层 intent_id = 批量默认
+			defaultIntent := pid(a.factItem.IntentID) // top-level intent_id = batch default
 
 			ids := make([]int64, len(items))
 			errs := map[string]string{}
@@ -1096,7 +1097,7 @@ func (t *ToolSet) recordFact() actool.CoreTool {
 			// gets a nudge to stop.
 			stop := t.noteFactProgress(anyCreated)
 
-			if !batch { // 单条：保持原返回
+			if !batch { // single item: keep the original return
 				if e, bad := errs["0"]; bad {
 					return actool.Errorf(e), nil
 				}
@@ -1135,7 +1136,7 @@ type hintItem struct {
 	AssetIDs []json.RawMessage `json:"asset_ids"`
 }
 
-// addOneHint 挂一条 hint 节点(active/human)到探索图,可锚定资产,返回 id。
+// addOneHint attaches one hint node (active/human) to the exploration graph, optionally anchored to assets, and returns the id.
 func (t *ToolSet) addOneHint(it hintItem) (int64, error) {
 	if strings.TrimSpace(it.Text) == "" {
 		return 0, fmt.Errorf("text cannot be empty")
@@ -1164,7 +1165,7 @@ func (t *ToolSet) addHint() actool.CoreTool {
 		func(_ context.Context, in json.RawMessage) (actool.Result, error) {
 			var a struct {
 				Hints    []hintItem `json:"hints"`
-				hintItem            // 单条模式：顶层 text/asset_ids
+				hintItem            // single-item mode: top-level text/asset_ids
 			}
 			_ = json.Unmarshal(in, &a)
 			batch := len(a.Hints) > 0
@@ -1184,7 +1185,7 @@ func (t *ToolSet) addHint() actool.CoreTool {
 				ids[i] = id
 			}
 
-			if !batch { // 单条：保持原返回
+			if !batch { // single item: keep the original return
 				if e, bad := errs["0"]; bad {
 					return actool.Errorf(e), nil
 				}
@@ -1224,7 +1225,7 @@ func (t *ToolSet) killWorkTool() actool.CoreTool {
 // steerWorkTool lets the planner inject a mid-run course-correction into a running
 // work WITHOUT killing it: the message reaches the worker before its next tool call,
 // which re-plans its next step (already-gathered context is kept). For in-intent
-// nudges ("停做 X、聚焦 Y"); if the whole direction is wrong use kill_work + a new intent.
+// nudges ("stop doing X, focus on Y"); if the whole direction is wrong use kill_work + a new intent.
 func (t *ToolSet) steerWorkTool() actool.CoreTool {
 	return writeTool("steer_work", "Inject a real-time course-correction instruction into a running intent (work) without interrupting it or losing existing progress: the worker will receive your instruction before its next action and adjust accordingly. Used for [in-intent] corrections like 'stop going down X, focus on Y'; if the whole direction is wrong, use kill_work instead and then issue a new intent. It is recommended to first use get_worker_output to see what it is doing.",
 		obj(map[string]any{
@@ -1254,7 +1255,7 @@ func (t *ToolSet) steerWorkTool() actool.CoreTool {
 		})
 }
 
-// getWorkerOutput returns a work's final (or截至中止时的) conclusion text by intent id.
+// getWorkerOutput returns a work's final (or as-of-abort) conclusion text by intent id.
 func (t *ToolSet) getWorkerOutput() actool.CoreTool {
 	return readTool("get_worker_output", "Fetch the final output conclusion of an intent (work). On normal completion it returns its summary; for a terminated (stopped)/abnormal work it returns its last output as of termination (terminated=true).",
 		obj(map[string]any{"intent_id": idp("intent id (= the work handle)")}, "intent_id"),
@@ -1478,11 +1479,11 @@ func (t *ToolSet) PlannerTools() []actool.CoreTool {
 		t.graphOverview(), t.listFindings(), t.listFacts(), t.nodeDetail(),
 		t.getWorkerOutput(), t.getWorkerTrace(), t.searchAllWorkerTraces(), t.listGoals(), t.addIntent(), t.proveGoal(), t.goalMet(),
 		t.killWorkTool(), t.steerWorkTool(),
-		// report_finding：规划态势研判时若自身已确证漏洞，可直接登记（与 worker 同工具）。
+		// report_finding: if the planner itself has already confirmed a vulnerability while assessing the situation, it can register it directly (same tool as the worker).
 		t.addFinding(),
-		// list_companies：查看企业列表 + scope + 资产数（拿 company_id / 理解归属范围）。
+		// list_companies: view the company list + scope + asset count (to get company_id / understand the ownership scope).
 		t.listCompanies(),
-		// 知识库：规划时检索评分规则/目标/通用方法论以校准探索意图。
+		// knowledge base: during planning, retrieve scoring rules / goals / general methodology to calibrate exploration intents.
 		t.searchKnowledge(), t.listKnowledgeCategories(),
 	}
 }

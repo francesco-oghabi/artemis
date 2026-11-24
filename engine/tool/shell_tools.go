@@ -12,7 +12,7 @@ import (
 
 // The interactive-shell tool family (opt-in; NOT in DefaultTools). ShellSessionTools
 // returns all five. They require a task Manager on the ToolContext (tc.Tasks) — that is
-// where the PTY sessions live and get cleaned up. See docs/交互式shell设计.md.
+// where the PTY sessions live and get cleaned up. See docs/interactive-shell-design.md.
 
 // ShellSessionTools returns the five interactive-shell tools. Callers add them to
 // Options.Tools only when interactive shell is enabled for the agent.
@@ -73,7 +73,7 @@ func ms(v int, def int) time.Duration {
 	return time.Duration(v) * time.Millisecond
 }
 
-// NewShellOpen 开一个交互会话。
+// NewShellOpen opens an interactive session.
 func NewShellOpen() CoreTool {
 	desc := "Open a persistent PTY interactive session to run [interactive programs / programs that need a real TTY] (msfconsole / interactive ssh / REPLs such as mysql, python / password prompts / nc sessions), and return a session_id. **For one-off, non-interactive commands use Bash instead**. mode: interactive=block until the first prompt/silence, then return the startup output; hands-free (default)=return immediately, then poll with shell_read; dispatch=return immediately, send a notification on completion; monitor=return immediately, watch in the background for the keywords in watch, send a notification on a match (the session does not end; good for lying in wait, but the session only survives within this run). Set prompt_regex (e.g. 'msf6? >\\s*$') to precisely determine command completion. Always shell_close when done."
 	schema := obj(map[string]any{
@@ -162,7 +162,7 @@ func NewShellOpen() CoreTool {
 	})
 }
 
-// NewShellSend 向会话发送输入/按键。
+// NewShellSend sends input/keys to a session.
 func NewShellSend() CoreTool {
 	desc := "Send input to an interactive session. Combinable (sent in order of appearance): text=text (no Enter); submit=true appends Enter to execute; keys=named keys [ctrl+c/tab/up/...]; hex=raw bytes ['0x1b',...]; paste=multi-line paste (bracketed paste, not executed line by line). wait=true (default) waits for the command to complete and returns the incremental output."
 	schema := obj(map[string]any{
@@ -248,7 +248,7 @@ func NewShellSend() CoreTool {
 	})
 }
 
-// NewShellRead 读输出：增量流 或 整屏快照。
+// NewShellRead reads output: incremental stream or full-screen snapshot.
 func NewShellRead() CoreTool {
 	desc := "Read the output of an interactive session (without sending input). view=stream (default) is the incremental raw stream (preferred for streaming tools; continue reading by since_cursor, or use drain to get everything); view=screen is a full-screen vt snapshot (for full-screen programs such as vim/htop)."
 	schema := obj(map[string]any{
@@ -306,7 +306,7 @@ func NewShellRead() CoreTool {
 	})
 }
 
-// NewShellClose 关闭会话。
+// NewShellClose closes a session.
 func NewShellClose() CoreTool {
 	schema := obj(map[string]any{"session_id": strProp("session id")}, "session_id")
 	return sessTool("shell_close", "Close an interactive session (kill the process, release the PTY).", schema, false, func(_ context.Context, in json.RawMessage, tc *ToolContext) (Result, error) {
@@ -331,7 +331,7 @@ func NewShellClose() CoreTool {
 	})
 }
 
-// NewShellList 列出会话。
+// NewShellList lists sessions.
 func NewShellList() CoreTool {
 	return sessTool("shell_list", "List all current interactive sessions and their state.", obj(map[string]any{}), true, func(_ context.Context, _ json.RawMessage, tc *ToolContext) (Result, error) {
 		m, errR := sessManager(tc)

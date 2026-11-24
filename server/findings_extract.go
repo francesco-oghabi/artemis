@@ -1,8 +1,9 @@
 package server
 
-// 漏洞补录：从任务的 agent 转录（主 Agent 综合 + workers）里用 AI 提取被描述但
-// 从未 report_finding 落库的确认漏洞，补建成 finding 节点。因为探索图/发现页/报告
-// 都读同一批 finding 节点，一次补录三处同时出现。
+// Vulnerability backfill: use AI to extract, from a task's agent transcript (the main Agent's synthesis
+// + workers), confirmed vulnerabilities that were described but never persisted via report_finding, and
+// create them as finding nodes. Because the exploration graph/findings page/report all read the same set
+// of finding nodes, one backfill makes them appear in all three places at once.
 
 import (
 	"encoding/json"
@@ -28,11 +29,13 @@ func (s *Server) extractFindings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 附上探索图里已记录的【事实】（含 worker 发现的接口/暴露面）——仅靠对话转录会漏掉
-	// 用 record_fact 写回、却没升级成 finding 的暴露/信息泄露，让"梳理"能把它们提出来。
+	// Attach the [facts] already recorded in the exploration graph (including interfaces/exposure
+	// surfaces found by workers), since relying on the conversation transcript alone would miss
+	// exposures/info leaks written back via record_fact but never promoted to a finding, so the
+	// "review" can surface them.
 	if facts, ferr := t.Store.ListByKind(db.KindFact, 200); ferr == nil && len(facts) > 0 {
 		var fb strings.Builder
-		fb.WriteString("\n\n【探索图已记录的事实（可能含未升级为发现的暴露/攻击面）】\n")
+		fb.WriteString("\n\n[Facts already recorded in the exploration graph (may include exposures/attack surfaces not yet promoted to findings)]\n")
 		for _, n := range facts {
 			var p struct {
 				Summary string `json:"summary"`
@@ -49,7 +52,7 @@ func (s *Server) extractFindings(w http.ResponseWriter, r *http.Request) {
 				if rr := []rune(d); len(rr) > 200 {
 					d = string(rr[:200])
 				}
-				fb.WriteString("：")
+				fb.WriteString(": ")
 				fb.WriteString(d)
 			}
 			fb.WriteString("\n")
@@ -108,14 +111,11 @@ func (s *Server) extractFindings(w http.ResponseWriter, r *http.Request) {
 
 func normalizeSeverity(s string) string {
 	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "critical", "严重", "high", "高危", "高":
-		if strings.Contains(strings.ToLower(s), "crit") || strings.Contains(s, "严重") {
-			return "high" // Artemis severity set is high|medium|low
-		}
+	case "critical", "high": // severity set is high|medium|low, so critical collapses to high
 		return "high"
-	case "medium", "中危", "中", "med":
+	case "medium", "med":
 		return "medium"
-	case "low", "低危", "低", "info", "信息":
+	case "low", "info":
 		return "low"
 	}
 	return "medium"

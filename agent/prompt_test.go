@@ -17,11 +17,11 @@ func TestRenderSystemOverrideAndFallback(t *testing.T) {
 	// override → rendered with vars
 	PromptOverride = func(k string) (string, bool) {
 		if k == "planner" {
-			return "目标:{{.Goal}} 范围:{{.Scope}}", true
+			return "Goal:{{.Goal}} Scope:{{.Scope}}", true
 		}
 		return "", false
 	}
-	if got := renderSystem("planner", "DEFAULT", PlannerVars{Goal: "拿下X", Scope: "*.x.com"}); got != "目标:拿下X 范围:*.x.com" {
+	if got := renderSystem("planner", "DEFAULT", PlannerVars{Goal: "take X", Scope: "*.x.com"}); got != "Goal:take X Scope:*.x.com" {
 		t.Fatalf("override render: %q", got)
 	}
 
@@ -34,8 +34,8 @@ func TestRenderSystemOverrideAndFallback(t *testing.T) {
 	// full plannerSystem path: DB body [A] is honored, then the code-owned tail
 	// [C] (artifactSpec) is ALWAYS appended: editing the body can't drop it.
 	PromptOverride = func(k string) (string, bool) { return "PLANNER {{.Goal}}", true }
-	got := plannerSystem("拿下X", "/data")
-	if !strings.HasPrefix(got, "PLANNER 拿下X") {
+	got := plannerSystem("take X", "/data")
+	if !strings.HasPrefix(got, "PLANNER take X") {
 		t.Fatalf("plannerSystem body not honored: %q", got)
 	}
 	if !strings.Contains(got, "Intermediate-artifact output convention") || !strings.Contains(got, "/data") {
@@ -45,10 +45,10 @@ func TestRenderSystemOverrideAndFallback(t *testing.T) {
 	// worker dual-text via {{if .ProxyAddr}} in a user template, plus the code tail:
 	// [B] trafficTool present only with a proxy, [C] artifact spec always present.
 	PromptOverride = func(k string) (string, bool) {
-		return "{{if .ProxyAddr}}走代理 {{.ProxyAddr}}{{else}}手动{{end}}", true
+		return "{{if .ProxyAddr}}via proxy {{.ProxyAddr}}{{else}}manual{{end}}", true
 	}
 	withProxy := workerSystem("127.0.0.1:8080", "/data")
-	if !strings.HasPrefix(withProxy, "走代理 127.0.0.1:8080") {
+	if !strings.HasPrefix(withProxy, "via proxy 127.0.0.1:8080") {
 		t.Fatalf("worker proxy branch body: %q", withProxy)
 	}
 	if !strings.Contains(withProxy, "traffic_search") {
@@ -58,7 +58,7 @@ func TestRenderSystemOverrideAndFallback(t *testing.T) {
 		t.Fatalf("worker missing artifact tail: %q", withProxy)
 	}
 	noProxy := workerSystem("", "/data")
-	if !strings.HasPrefix(noProxy, "手动") {
+	if !strings.HasPrefix(noProxy, "manual") {
 		t.Fatalf("worker no-proxy branch body: %q", noProxy)
 	}
 	if strings.Contains(noProxy, "traffic_search") {

@@ -11,7 +11,7 @@ import (
 	"artemis/db"
 )
 
-// goalsDefaultTmpl is the built-in EDITABLE body (段 [A]) of the goals-decomposer
+// goalsDefaultTmpl is the built-in EDITABLE body (section [A]) of the goals-decomposer
 // prompt, seeded into agent_prompts. No template vars are used today.
 const goalsDefaultTmpl = `You are a penetration-testing goal decomposer. Your job is to identify from the user input the **final results to be achieved**, not to plan attack steps.
 
@@ -42,7 +42,7 @@ type GoalSpec struct {
 // no provider is configured or the call yields nothing — the caller then falls
 // back to a rule-based split so goal nodes always exist.
 //
-// desc is the task's free-text description (背景：靶标范围/flag 数量/交战说明等).
+// desc is the task's free-text description (background: target scope / number of flags / engagement notes, etc.).
 // It is fed alongside the goal so the decomposer no longer splits blind — the
 // prompt still forbids inventing anything the two texts don't state.
 //

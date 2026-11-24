@@ -134,10 +134,10 @@ func proxyEnv(proxyAddr, caCert string) []string {
 	return env
 }
 
-// workerDefaultTmpl is the built-in EDITABLE body (段 [A]) of the worker system
+// workerDefaultTmpl is the built-in EDITABLE body (section [A]) of the worker system
 // prompt, seeded into agent_prompts. The trafficTool block and the artifactSpec
 // are NOT here: they are code-owned and appended by workerSystem after rendering
-// (段 [B]/[C]), so editing the DB body can never drop them.
+// (sections [B]/[C]), so editing the DB body can never drop them.
 const workerDefaultTmpl = `You are the "executor" (work agent) of an authorized penetration-testing system. You are assigned [one intent] (a one-sentence exploration direction). Your sole responsibility is: **complete this one intent, write the facts you discover back into the knowledge graph, then stop and return.**
 
 Iron rules (must be followed):
@@ -160,7 +160,7 @@ Available tools:
 
 Operate only within the authorized scope. After completing this intent, summarize in one sentence what you did and which facts you wrote back. Be pragmatic, restrained, and focused on this one intent.`
 
-// workerTrafficBlock is 段 [B]: the traffic-tool note, code-injected only when
+// workerTrafficBlock is section [B]: the traffic-tool note, code-injected only when
 // traffic capture is on (proxyAddr set). Not stored, not editable.
 func workerTrafficBlock(proxyAddr string) string {
 	if proxyAddr == "" {
@@ -169,7 +169,7 @@ func workerTrafficBlock(proxyAddr string) string {
 	return "\n\n**Traffic tools**:\n- traffic_search / traffic_get: all target traffic has been fully persisted by the recording proxy (local file tree data/traffic/<host>/<access path>/). To review responses and find already-visited resources, **query the traffic first, don't curl the same URL again**. traffic_search **must specify a host**, and by default returns only 3 extremely lightweight index entries (id/method/url/status/resp_len, no response body); raise limit explicitly if you need more; to see the verbatim content of one entry use traffic_get(id)."
 }
 
-// artifactSpec is 段 [C]: the code-owned, non-editable tail appended to every
+// artifactSpec is section [C]: the code-owned, non-editable tail appended to every
 // pentest agent's prompt — intermediate artifacts must land in the shared work
 // dir, never /tmp. Guaranteed present regardless of how the DB body is edited.
 func artifactSpec(workDir string) string {
@@ -232,12 +232,14 @@ func (w *Worker) Execute(ctx context.Context, name string, taskID int64, as *db.
 	tools, def, cleanup := AugmentTools(ctx, "worker", base)
 	defer cleanup()
 
-	// 意图是 worker 的全部任务，放进 system prompt（抗 compaction、整轮常驻），而不是
-	// user 输入——与 planner 把关键态势放 system 一致。落在指令之后、deferred 块之前。
-	// 全局态势(graphOverviewData)也带上，但仅供了解大局；意图放在最后、最醒目的位置。
+	// The intent is the worker's whole task, so it goes into the system prompt
+	// (compaction-resistant, resident for the whole round), not the user input, matching
+	// how the planner puts its key situation in system. It lands after the instructions and
+	// before the deferred block. The global situation (graphOverviewData) is carried too, but
+	// only for awareness of the big picture; the intent goes last, in the most prominent spot.
 	overview := renderWorkerGraphOverview(tsx.graphOverviewData())
 	system, boundary := deferredSystem(workerSystem(w.proxyAddr, w.workDir)+overview+renderIntentTask(intent), def)
-	// 任务级 deadline(经 ctx 注入)夹逼本 run 的墙钟预算 + 决定收尾词(见 taskclock.go)。
+	// The task-level deadline (injected via ctx) clamps this run's wall-clock budget and decides the wrap-up text (see taskclock.go).
 	tc := taskClockFrom(ctx)
 	maxDur, clamped := clampMaxDuration(tc.DeadlineUnix, w.runTimeout)
 	settle := wrapupSettlement("worker", []string{"Bash"})
@@ -252,34 +254,38 @@ func (w *Worker) Execute(ctx context.Context, name string, taskID int64, as *db.
 		DeferredTools:   def.Deferred,
 		UnlockSet:       def.Unlock,
 		PermissionMode:  permission.ModeBypass,
-		// WebFetch 走记录代理，其 HTTP 与 curl 一样被留痕；载入代理 CA 让经 MITM
-		// 重签的 HTTPS 证书能【正常校验通过】（而非关掉校验）。proxy 空则直连。
+		// WebFetch routes through the recording proxy, so its HTTP is traced just like curl's;
+		// loading the proxy CA lets the MITM-resigned HTTPS certificate [pass verification
+		// normally] (rather than disabling verification). Empty proxy = direct.
 		EnableWebFetch: true,
 		WebFetchProxy:  w.proxyAddr,
 		WebFetchCACert: w.proxyCACert,
-		// 联网搜索(可选)。ddgs 无需 key；brave-free 需 BraveKey；tavily 需 TavilyKey。
-		// WebSearchProxy 是独立的出口代理(http/https/socks5)，与记录流量的 MITM 代理无关；空则直连。
+		// Web search (optional). ddgs needs no key; brave-free needs BraveKey; tavily needs TavilyKey.
+		// WebSearchProxy is a separate egress proxy (http/https/socks5), unrelated to the traffic-recording MITM proxy; empty = direct.
 		EnableWebSearch:    w.webSearch.Enabled,
 		WebSearchBackend:   w.webSearch.Backend,
 		BraveSearchAPIKey:  w.webSearch.BraveKey,
 		TavilySearchAPIKey: w.webSearch.TavilyKey,
 		WebSearchProxy:     w.webSearch.Proxy,
-		// Bash 子命令的 HTTP 默认走记录代理 + 信任其 CA（工具无需 -x/-k）。
+		// Bash subcommands' HTTP routes through the recording proxy and trusts its CA by default (tools need no -x/-k).
 		BashEnv:    proxyEnv(w.proxyAddr, w.proxyCACert),
 		WorkingDir: w.workDir,
 		MaxTurns:   w.maxTurns, // 0 = unlimited (configurable in agent management)
-		// 墙钟预算,轮边界判,不打断半路;0 = 不限。有任务级 deadline 时夹逼到 min(自身预算,
-		// 距 deadline 剩余),让本 run 在任务到点时自然进收尾(见 taskclock.go)。
+		// Wall-clock budget, checked at the turn boundary, never interrupting mid-way; 0 = unlimited.
+		// With a task-level deadline, clamp it to min(own budget, time remaining until deadline), so
+		// this run enters wrap-up naturally when the task hits its deadline (see taskclock.go).
 		MaxDuration: maxDur,
-		// 命中预算(轮次 OR 时长)→ SDK 跑一轮收尾(隐藏 Bash),把已识别的写回,避免烂尾。
-		// clamped(被任务 deadline 夹逼)时用 PromptByReason:因超时=任务到点→任务超时词,
-		// 因步数=夹逼窗口内步数先耗尽→回落 per-run 词。非 clamped 维持纯 per-run。
+		// On hitting the budget (turns OR duration) -> the SDK runs one wrap-up round (hiding Bash),
+		// writing back what was identified to avoid a botched ending.
+		// When clamped (by the task deadline) it uses PromptByReason: on timeout = task hit its
+		// deadline -> task-timeout text; on step count = the steps within the clamped window ran out
+		// first -> fall back to the per-run text. When not clamped it stays pure per-run.
 		Settlement: settle,
 		// large tool output spills to cmd-output/ with a head + pointer (SDK tool.Capture);
-		// full output preserved on disk. 截断上限用 SDK 默认(30000 字符)。
+		// full output preserved on disk. The truncation cap uses the SDK default (30000 characters).
 		ToolOutputDir: filepath.Join(w.workDir, "cmd-output"),
 		Compaction:    compactionConfig(w.window), // long tool-heavy runs stay within the window
-		Todos:         actool.NewTodoStore(),      // 会话级临时待办（TodoWrite），纯规划用，退出即丢
+		Todos:         actool.NewTodoStore(),      // session-scoped temporary to-dos (TodoWrite), purely for planning, discarded on exit
 	}
 	if hooks != nil { // typed-nil guard: only set when concrete (avoids harness panic)
 		opts.Hooks = hooks
@@ -298,7 +304,7 @@ func (w *Worker) Execute(ctx context.Context, name string, taskID int64, as *db.
 			emit(r)
 		}
 	}
-	// 意图已在 system 里。user 输入只放启动指令。
+	// The intent is already in system. The user input carries only the start instruction.
 	input := "Begin executing the intent in the system prompt: do only it, produce only facts, stop when done."
 
 	s := agentcore.NewSession(opts)

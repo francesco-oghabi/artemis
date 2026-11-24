@@ -6,10 +6,10 @@ import (
 	"artemis/traffic"
 )
 
-// 漏洞↔流量关联接口。关联在 PG，报文元数据从流量库(SQLite)按 id 解析。
-// 手动关联走这里(source=manual)；任务引擎将来可直接调 pg.LinkFindingTraffic(..., "auto") 自动记录。
+// Vulnerability<->traffic association API. Associations live in PG; packet metadata is resolved by id from the traffic store (SQLite).
+// Manual associations go through here (source=manual); in future the task engine can call pg.LinkFindingTraffic(..., "auto") directly to record them automatically.
 
-// POST /api/findings/{id}/traffic — body {exchange_ids:[]} 关联流量到漏洞。
+// POST /api/findings/{id}/traffic: body {exchange_ids:[]} associates traffic with a vulnerability.
 func (s *Server) linkFindingTraffic(w http.ResponseWriter, r *http.Request) {
 	pg := s.pg(w)
 	if pg == nil {
@@ -34,7 +34,7 @@ func (s *Server) linkFindingTraffic(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"ok": true, "linked": len(req.ExchangeIDs)})
 }
 
-// GET /api/findings/{id}/traffic — 列出该漏洞关联的流量（带元数据；报文正文按需另取）。
+// GET /api/findings/{id}/traffic: list the traffic associated with this vulnerability (with metadata; packet bodies fetched separately on demand).
 func (s *Server) listFindingTraffic(w http.ResponseWriter, r *http.Request) {
 	pg := s.pg(w)
 	if pg == nil {
@@ -57,7 +57,7 @@ func (s *Server) listFindingTraffic(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"exchanges": trafficDTOs(metas)})
 }
 
-// DELETE /api/findings/{id}/traffic/{eid} — 解除关联。
+// DELETE /api/findings/{id}/traffic/{eid}: remove the association.
 func (s *Server) unlinkFindingTraffic(w http.ResponseWriter, r *http.Request) {
 	pg := s.pg(w)
 	if pg == nil {

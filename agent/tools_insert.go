@@ -143,7 +143,7 @@ func (t *ToolSet) insertAssets() actool.CoreTool {
 						"description": "list of discovered authentication info; each entry has fields such as type/username/password (optional, appended not overwritten)",
 						"items":       map[string]any{"type": "object"},
 					},
-					// service (other，非 HTTP)
+					// service (other, non-HTTP)
 					"service_name": str("service name, e.g. ssh/mysql/redis (required for a non-HTTP service)"),
 					"port":         intp("port number (required for a non-HTTP service)"),
 					// endpoint
@@ -367,7 +367,7 @@ func (t *ToolSet) listAssets() actool.CoreTool {
 			"  task_id     source task id (integer)\n"+
 			"Examples: status_code>=400 AND technology=shiro\n"+
 			"      method==POST AND url=/api/admin\n"+
-			"      icp=京 OR icp=沪\n"+
+			"      icp=Beijing OR icp=Shanghai\n"+
 			"      (port==80 OR port==443) AND technology=nginx",
 		obj(map[string]any{
 			"dsl":    str(`DSL query expression, see the tool description. Must be non-empty when id/ids is not passed. e.g.: status_code>=400 technology=shiro / method==POST url=/api/admin`),
@@ -417,7 +417,7 @@ func (t *ToolSet) listAssets() actool.CoreTool {
 	)
 }
 
-// listCompanies lets an agent enumerate companies (企业) with their scope + asset count.
+// listCompanies lets an agent enumerate companies with their scope + asset count.
 func (t *ToolSet) listCompanies() actool.CoreTool {
 	return readTool(
 		"list_companies",

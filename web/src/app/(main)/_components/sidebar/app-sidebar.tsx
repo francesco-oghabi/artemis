@@ -29,7 +29,7 @@ import { NavUser } from "./nav-user";
 import { SidebarSupportCard } from "./sidebar-support-card";
 
 
-// nav 项 → 所需读权限（无映射的项始终显示）。用于按角色隐藏无权页面。
+// nav item → required read permission (items with no mapping are always shown). Used to hide pages the role has no access to.
 const NAV_PERM: Record<string, string> = {
   dashboard: "dashboard:read",
   chat: "task:read",
@@ -67,8 +67,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const variant = isSynced ? sidebarVariant : props.variant;
   const collapsible = isSynced ? sidebarCollapsible : props.collapsible;
 
-  // 按权限过滤 nav + 三语翻译（按 id 查 nav.* / navGroup.*，中文原文兜底）。
-  // 权限未就绪前先显示全部（避免闪烁），就绪后隐藏无权项。i18n.language 入依赖，切换语言即时重算。
+  // Filter nav by permission + translate (look up nav.* / navGroup.* by id, falling back to the original title).
+  // Before permissions are ready, show all (avoid flicker); once ready, hide items with no access. i18n.language is a dependency, so switching language recomputes instantly.
   const navItems = useMemo(() => {
     const tr = <T extends { id: string; title: string }>(it: T): T => ({
       ...it,
