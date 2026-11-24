@@ -1,11 +1,11 @@
 # Bersaglio di test volutamente vulnerabile: OWASP Juice Shop.
-# Non fa parte di Artemis: e' un target isolato usato per il benchmark
+# Non fa parte di OpenArtemis: e' un target isolato usato per il benchmark
 # di rilevamento (modello locale vs modello a pagamento).
 #
-# IMPORTANTE: il container si aggancia alla rete di Artemis (artemis_default)
-# e Artemis lo raggiunge per NOME CONTAINER:  http://juice-shop:3000
+# IMPORTANTE: il container si aggancia alla rete di OpenArtemis (artemis_default)
+# e OpenArtemis lo raggiunge per NOME CONTAINER:  http://juice-shop:3000
 # NON usare host.docker.internal: coincide con l'host del gateway LLM (Ollama)
-# e fa scattare il guard P0-1 di Artemis (server.go:1270), che rifiuta il
+# e fa scattare il guard P0-1 di OpenArtemis (server.go:1270), che rifiuta il
 # target e blocca le chiamate ("Operation not allowed").
 #
 # Avvio:   docker compose -f targets/juice-shop/docker-compose.yml up -d

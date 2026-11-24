@@ -1,4 +1,4 @@
-# Modelfile for the custom model used as the planner/worker LLM in Artemis.
+# Modelfile for the custom model used as the planner/worker LLM in OpenArtemis.
 # Ollama name: qwen3-coder-ctx32k-t03-s42
 #
 # Base: Qwen3-Coder-30B-A3B-Instruct, Q4_K_M quant (qwen3moe architecture,

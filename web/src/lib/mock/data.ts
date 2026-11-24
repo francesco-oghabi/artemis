@@ -345,7 +345,7 @@ export const trafficDetail: TrafficDetail = {
   req: `GET /v1/orders?id=1002 HTTP/1.1
 Host: api.acme.com
 Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
-User-Agent: Artemis-worker/1.0
+User-Agent: OpenArtemis-worker/1.0
 Accept: application/json
 
 `,

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Artemis supervisor launcher (Linux / macOS / Docker ENTRYPOINT).
+# OpenArtemis supervisor launcher (Linux / macOS / Docker ENTRYPOINT).
 #
 # Usage:
 #   ./start.sh                            foreground (Ctrl-C to stop)

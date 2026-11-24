@@ -141,9 +141,9 @@ One gap is closed and two remain:
    useful safety net.
 
 And the comparison is **not at harness parity**: the frontier model was driven in a direct
-session with a full shell, the local model inside Artemis's constrained planner/worker
+session with a full shell, the local model inside OpenArtemis's constrained planner/worker
 loop. The gap measured here is therefore model *plus* harness. Isolating the model gap
-needs the still-missing third data point: the frontier model driven *inside* Artemis on the
+needs the still-missing third data point: the frontier model driven *inside* OpenArtemis on the
 same target.
 
 ## Honest limitations

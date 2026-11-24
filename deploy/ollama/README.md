@@ -1,6 +1,6 @@
-# Ollama serving config for Artemis
+# Ollama serving config for OpenArtemis
 
-Everything changed on the local LLM backend (Ollama) to run Artemis's planner and
+Everything changed on the local LLM backend (Ollama) to run OpenArtemis's planner and
 workers, with the reason for each choice. The point is not just *what* the values are
 but *why* they are tuned this way, so the setup can be rebuilt and understood.
 
@@ -17,10 +17,10 @@ the machine is aligned to it (see "How to apply").
 ## Call chain
 
 ```
-Artemis (worker/planner)  ->  [optional logprobs proxy]  ->  ollama serve :11434
+OpenArtemis (worker/planner)  ->  [optional logprobs proxy]  ->  ollama serve :11434
 ```
 
-- Artemis points at an OpenAI-compatible endpoint (`.../v1`) configured as an LLM
+- OpenArtemis points at an OpenAI-compatible endpoint (`.../v1`) configured as an LLM
   profile in the UI.
 - An optional local logprobs-capture proxy (external to this repo) can sit in front of
   Ollama for measurement; it uses a threaded HTTP server and does not serialize
@@ -46,13 +46,13 @@ with 4 KV heads, 48 layers, head_dim 64).
 
 Drop-in `systemd/ollama.service.d/parallel.conf`.
 
-**Problem.** Artemis can launch N concurrent workers (`settings.workers`). If Ollama
+**Problem.** OpenArtemis can launch N concurrent workers (`settings.workers`). If Ollama
 serves only one sequence at a time, the extra workers queue serially and the parallelism
 is fake. `OLLAMA_NUM_PARALLEL` sets how many sequences a single loaded model actually
 serves in parallel.
 
 **Rule.** `OLLAMA_NUM_PARALLEL >= settings.workers`, otherwise workers past the limit
-wait. Here: workers=2 on the Artemis side, NUM_PARALLEL=2 on the Ollama side.
+wait. Here: workers=2 on the OpenArtemis side, NUM_PARALLEL=2 on the Ollama side.
 
 **VRAM cost (why 2 fits and why not jump to 4).** Each parallel slot has its own KV
 cache. Thanks to GQA (only 4 KV heads) a 32k cache is cheap:
@@ -90,9 +90,9 @@ Agreed values:
 
 | where | key | value | note |
 |---|---|---|---|
-| Artemis DB `settings` | `workers` | 2 | read at each task start, no restart |
-| Artemis DB `agents` (worker) | `max_turns` | 100 | per-intent step cap |
-| Artemis DB `agents` (worker) | `run_seconds` | 720 | per-intent wall-clock cap (12 min) |
+| OpenArtemis DB `settings` | `workers` | 2 | read at each task start, no restart |
+| OpenArtemis DB `agents` (worker) | `max_turns` | 100 | per-intent step cap |
+| OpenArtemis DB `agents` (worker) | `run_seconds` | 720 | per-intent wall-clock cap (12 min) |
 | Ollama systemd | `OLLAMA_NUM_PARALLEL` | 2 | must be >= workers |
 
 ## How to apply

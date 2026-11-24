@@ -1,6 +1,6 @@
 # Architecture
 
-Artemis is a Go single binary (with the Next.js frontend embedded via `go:embed`)
+OpenArtemis is a Go single binary (with the Next.js frontend embedded via `go:embed`)
 backed by PostgreSQL. This document explains the two ideas that matter most: the
 **dual-graph** model that the engine runs on, and the **intervention-levels taxonomy**
 that decides where every change belongs.

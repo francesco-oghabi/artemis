@@ -1,4 +1,4 @@
-// Command artemis runs the Artemis backend: the dual SQLite graph stores,
+// Command artemis runs the OpenArtemis backend: the dual SQLite graph stores,
 // the event-driven exploration engine, and the JSON HTTP API consumed by the
 // shadcn/ui frontend.
 package main
@@ -116,7 +116,7 @@ func run() int {
 	}
 
 	go func() {
-		log.Printf("Artemis %s backend listening on %s (data=%s, workers=%d)", version, *addr, *dataDir, mgr.Workers())
+		log.Printf("OpenArtemis %s backend listening on %s (data=%s, workers=%d)", version, *addr, *dataDir, mgr.Workers())
 		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("serve: %v", err)
 		}

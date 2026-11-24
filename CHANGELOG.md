@@ -1,11 +1,11 @@
 # Changelog
 
-All notable changes to Artemis. The format follows
+All notable changes to OpenArtemis. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/).
 
-Artemis is a fork of [AntiFox](https://github.com/AntiFox-AI/antifox) (itself a fork of
-ARTEX). This changelog records the Artemis-specific work on top of that base; see
+OpenArtemis is a fork of [AntiFox](https://github.com/AntiFox-AI/antifox) (itself a fork of
+ARTEX). This changelog records the OpenArtemis-specific work on top of that base; see
 [NOTICE](NOTICE) for lineage.
 
 ## [Unreleased]
@@ -55,7 +55,7 @@ ARTEX). This changelog records the Artemis-specific work on top of that base; se
   The model reasons in English; operator-facing strings are localized separately.
 - **Context-compaction thresholds scaled to the context window**, so small windows are no
   longer summarized constantly and poisoned.
-- Project rebranded from AntiFox to **Artemis** (module path, binary, env vars, image,
+- Project rebranded from AntiFox to **OpenArtemis** (module path, binary, env vars, image,
   UI).
 
 ### Fixed

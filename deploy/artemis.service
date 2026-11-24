@@ -1,4 +1,4 @@
-# Artemis systemd unit (reference template).
+# OpenArtemis systemd unit (reference template).
 #
 # Install:
 #   sudo cp deploy/artemis.service /etc/systemd/system/artemis.service
@@ -13,7 +13,7 @@
 # Data (PostgreSQL + the data dir) is separate from the binary, so updates never touch it.
 
 [Unit]
-Description=Artemis — AI autonomous penetration testing platform
+Description=OpenArtemis — AI autonomous penetration testing platform
 After=network-online.target postgresql.service
 Wants=network-online.target
 
