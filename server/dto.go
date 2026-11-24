@@ -31,7 +31,7 @@ func rawString(raw json.RawMessage) string {
 type TaskDTO struct {
 	ID            string        `json:"id"`
 	ExplorationID int64         `json:"exploration_id"`
-	Name          string        `json:"name"` // 简短任务名/目标；空=回退 #id·描述
+	Name          string        `json:"name"` // short task name/goal; empty = fall back to #id·description
 	Description   string        `json:"description"`
 	Goal          string        `json:"goal"`
 	Status        string        `json:"status"` // created | running | paused | done | failed
@@ -45,8 +45,8 @@ type TaskDTO struct {
 	GoalsTotal     int          `json:"goals_total"`
 	GoalsMet       int          `json:"goals_met"`
 	LLMProfileID   *int64       `json:"llm_profile_id,omitempty"` // LLM profile used for this task; nil = default
-	TimeoutSeconds int          `json:"timeout_seconds"`          // 任务级超时(秒);0=不限时。供编辑回填。
-	Egress         string       `json:"egress,omitempty"`         // 出口代理:''=跟随全局|'direct'=直连|'proxy'=走全局代理
+	TimeoutSeconds int          `json:"timeout_seconds"`          // task-level timeout (seconds); 0 = no limit. For edit-form backfill.
+	Egress         string       `json:"egress,omitempty"`         // egress proxy: ''=follow global | 'direct'=direct connection | 'proxy'=use the global proxy
 }
 
 // TokenTotalDTO is a whole-task (all agents) token aggregate.
@@ -104,7 +104,7 @@ type TrafficExchangeDTO struct {
 	ContentType string `json:"content_type"`
 	RespLen     int    `json:"resp_len"`
 	// MatchSnippet is the highlighted body excerpt when the page was filtered by a
-	// 正文 keyword (\x01/\x02 wrap the hit); empty otherwise.
+	// body keyword (\x01/\x02 wrap the hit); empty otherwise.
 	MatchSnippet string `json:"match_snippet,omitempty"`
 }
 
@@ -196,9 +196,9 @@ type FindingDTO struct {
 	EnrTarget string  `json:"enr_target,omitempty"`
 	Status    string  `json:"status,omitempty"` // open|confirmed|fixed|false_positive|ignored
 	Enriched      bool    `json:"enriched,omitempty"`
-	CVSSScore     float64 `json:"cvss_score,omitempty"`     // 富化后的 CVSS 分值（列表直接显示）
-	EvidenceCount int     `json:"evidence_count,omitempty"` // 证据截图数量（列表显示"证据 N 张"）
-	TrafficCount  int     `json:"traffic_count,omitempty"`  // 关联流量条数（列表显示"关联流量 N 条"）
+	CVSSScore     float64 `json:"cvss_score,omitempty"`     // enriched CVSS score (shown directly in the list)
+	EvidenceCount int     `json:"evidence_count,omitempty"` // number of evidence screenshots (list shows "N evidence items")
+	TrafficCount  int     `json:"traffic_count,omitempty"`  // number of associated traffic entries (list shows "N associated traffic entries")
 }
 
 // findingPayload mirrors the JSON written by the worker's report_finding tool
@@ -225,7 +225,7 @@ func findingDTO(n *db.Node) FindingDTO {
 }
 
 // findingDTOsForTask converts a task's finding nodes to DTOs, stamping each with
-// the owning task's id/description so the global 发现 page can group across tasks.
+// the owning task's id/description so the global findings page can group across tasks.
 func findingDTOsForTask(t *Task, in []*db.Node) []FindingDTO {
 	out := make([]FindingDTO, 0, len(in))
 	for _, n := range in {
@@ -324,7 +324,7 @@ type AgentDTO struct {
 	RunSecs          int    `json:"run_seconds"`
 	WebSearch        bool   `json:"web_search"`
 	InteractiveShell bool   `json:"interactive_shell"`
-	LLMProfileID     int64  `json:"llm_profile_id"` // 分级绑定；0=用全局激活配置
+	LLMProfileID     int64  `json:"llm_profile_id"` // tiered binding; 0 = use the global active config
 	// binding counts (populated only by the list endpoint) — shown on agent cards.
 	McpCount   int `json:"mcp_count"`
 	SkillCount int `json:"skill_count"`

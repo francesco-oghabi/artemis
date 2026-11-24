@@ -5,12 +5,16 @@ import (
 	"time"
 )
 
-// 登录失败限流器：按 IP 与账号两个维度各记一个滑动窗口计数，窗口内失败数超阈值即锁定一段
-// 冷却期。进程内存态（单实例部署够用，重启清零可接受），不做 DB 写——避免每次失败都落库
-// 反成放大攻击面。锁定/解锁等关键事件由调用方写审计日志，可在日志页查看。
+// Login-failure rate limiter: keeps a sliding-window count per IP and per account; once the
+// failure count within the window exceeds the threshold, it locks for a cooldown period. State
+// lives in process memory (good enough for a single-instance deployment, clearing on restart is
+// acceptable) and does not write to the DB, to avoid persisting every failure and amplifying the
+// attack surface. Key events such as lock/unlock are written to the audit log by the caller and
+// can be viewed on the logs page.
 //
-// 双维度的意义：仅按账号锁 → 攻击者可用错误口令刷某账号把合法用户锁死（DoS）；叠加按 IP
-// 锁 → 单一来源横扫多个用户名也会被按 IP 挡下。两桶任一命中即拒绝。
+// Why two dimensions: locking by account only -> an attacker can spam wrong credentials against an
+// account to lock the legitimate user out (DoS); adding an IP lock -> a single source sweeping many
+// usernames is also stopped by the IP lock. A hit on either bucket rejects the request.
 
 type loginBucket struct {
 	count       int
@@ -27,7 +31,7 @@ func newLoginLimiter() *loginLimiter {
 	return &loginLimiter{buckets: map[string]*loginBucket{}}
 }
 
-// loginPolicy 是限流器的可调参数，从 settings 读取（未设则用安全默认）。
+// loginPolicy holds the limiter's tunable parameters, read from settings (safe defaults when unset).
 type loginPolicy struct {
 	enabled       bool
 	userThreshold int
@@ -36,7 +40,7 @@ type loginPolicy struct {
 	cooldown      time.Duration
 }
 
-// loginPolicy 组装当前策略：各项可用 settings 覆盖，非法值回退默认。
+// loginPolicy assembles the current policy: each field can be overridden by settings, invalid values fall back to the default.
 func (s *Server) loginPolicy() loginPolicy {
 	pol := loginPolicy{
 		enabled:       true,
@@ -68,7 +72,7 @@ func (s *Server) loginPolicy() loginPolicy {
 func ipKey(ip string) string     { return "ip:" + ip }
 func userKey(user string) string { return "u:" + user }
 
-// locked 报告该 IP 或账号是否处于锁定冷却中，并返回剩余冷却时长（取两桶较大者）。
+// locked reports whether the IP or account is in a lock cooldown, and returns the remaining cooldown duration (the larger of the two buckets).
 func (l *loginLimiter) locked(ip, user string) (bool, time.Duration) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -84,8 +88,9 @@ func (l *loginLimiter) locked(ip, user string) (bool, time.Duration) {
 	return remain > 0, remain
 }
 
-// fail 记一次失败到 IP 桶与账号桶。返回 true 表示本次失败使某个桶【新进入】锁定状态
-// （供调用方写一条锁定审计）。策略关闭时不记任何状态，locked 永远为假。
+// fail records one failure into the IP bucket and the account bucket. Returns true when this failure
+// causes some bucket to [newly enter] the locked state (so the caller can write a lock audit entry).
+// When the policy is disabled it records no state and locked is always false.
 func (l *loginLimiter) fail(ip, user string, pol loginPolicy) bool {
 	if !pol.enabled {
 		return false
@@ -104,8 +109,9 @@ func (l *loginLimiter) fail(ip, user string, pol loginPolicy) bool {
 	return newlyLocked
 }
 
-// recordLocked 在一个桶上记一次失败，必要时滑动窗口，达阈值则设定冷却到期时间。
-// 返回 true 表示本次恰好触发锁定。调用方持有 l.mu。
+// recordLocked records one failure on a bucket, slides the window if needed, and sets the cooldown
+// expiry once the threshold is reached. Returns true when this call is exactly what triggered the
+// lock. The caller holds l.mu.
 func (l *loginLimiter) recordLocked(key string, now time.Time, window, cooldown time.Duration, threshold int) bool {
 	b := l.buckets[key]
 	if b == nil {
@@ -126,7 +132,7 @@ func (l *loginLimiter) recordLocked(key string, now time.Time, window, cooldown 
 	return false
 }
 
-// reset 清掉该 IP 与账号的失败计数（登录成功时调用）。
+// reset clears the failure counts for the IP and account (called on a successful login).
 func (l *loginLimiter) reset(ip, user string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -134,8 +140,9 @@ func (l *loginLimiter) reset(ip, user string) {
 	delete(l.buckets, userKey(user))
 }
 
-// sweepLocked 在桶数量偏大时清掉既不在锁定中、窗口也已过期的陈旧桶，防止海量不同
-// 用户名/来源把 map 撑大成内存压力。调用方持有 l.mu。
+// sweepLocked, when the bucket count grows large, clears stale buckets that are neither locked nor
+// within an active window, to prevent a flood of distinct usernames/sources from bloating the map
+// into memory pressure. The caller holds l.mu.
 func (l *loginLimiter) sweepLocked(now time.Time, pol loginPolicy) {
 	if len(l.buckets) < 4096 {
 		return

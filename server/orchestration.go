@@ -23,11 +23,11 @@ func jsonResult(v any) (actool.Result, error) {
 	return actool.Text(string(b)), nil
 }
 
-// 本文件实现 P2「跨任务编排工具集」(docs/跑分编排 §2 P2)。这些是 host 工具——需要
-// 访问 Manager(任意任务的 Store)、Engine(暂停)、以及建任务流程,所以住在 server 层。
-// 读类工具把「现有 per-task 工具」重定向到目标任务的 store 上跑(建一个临时 ToolSet
-// 并 Call 其对应工具),从而复用完全相同的逻辑;控制类(spawn/pause)直接调 Manager/Engine。
-// 它们像流量工具一样 seed 进 tools 表、按 agent 绑定(只绑给编排 agent 才可见)。
+// This file implements the P2 "cross-task orchestration tool set" (docs: benchmark orchestration §2 P2). These are host tools, which need
+// access to the Manager (any task's Store), the Engine (pause), and the task-creation flow, so they live in the server layer.
+// Read-type tools redirect the "existing per-task tools" to run against the target task's store (building a temporary ToolSet
+// and calling its corresponding tool), reusing exactly the same logic; control-type tools (spawn/pause) call Manager/Engine directly.
+// Like the traffic tools, they are seeded into the tools table and bound per agent (visible only when bound to the orchestration agent).
 
 // hostTools is the runtime host-tool provider fed to ToolAugment: traffic tools
 // (gated by capture) + cross-task orchestration tools + user-defined custom tools.
@@ -38,7 +38,7 @@ func jsonResult(v any) (actool.Result, error) {
 //nolint:unused // used as the hostTools provider in wireAgentAugment
 func (s *Server) hostTools() ([]actool.CoreTool, map[string][]string) {
 	tools := append(s.m.HostTools(), s.orchestrationTools()...)
-	tools = append(tools, s.platformTools()...) // 平台操作工具(建改 skill/工具/MCP，给 Auto 用)
+	tools = append(tools, s.platformTools()...) // platform operation tools (create/edit skill/tool/MCP, for Auto)
 	custom, err := s.customTools()
 	if err != nil {
 		log.Printf("[custom-tool] 加载失败: %v", err)
@@ -278,9 +278,9 @@ func (s *Server) toolSpawnTask() actool.CoreTool {
 					_ = s.m.PG().SetParentRef(id, a.ParentRef)
 				}
 			}
-			s.seed(t, a.Description+" "+a.Goal) // seed 初始资产，喂给事件驱动 loop
-			s.createGoals(s.ctx, t, nil)        // 目标分解(LLM;规则兜底)
-			s.engine.Run(s.ctx, t)              // 启动该任务的探索引擎
+			s.seed(t, a.Description+" "+a.Goal) // seed the initial assets, fed to the event-driven loop
+			s.createGoals(s.ctx, t, nil)        // goal decomposition (LLM; rule-based fallback)
+			s.engine.Run(s.ctx, t)              // start this task's exploration engine
 			return actool.Text(fmt.Sprintf("task created: %s", t.ID)), nil
 		})
 }
@@ -377,8 +377,8 @@ func (s *Server) deriveTaskStatus(t *Task) string {
 // are bindable per-agent (default: bound to nobody — opt-in for orchestration
 // agents). First-insert only, like the traffic seeds.
 func (s *Server) seedOrchestrationTools() {
-	// task-op + platform tools default-bind to the built-in Auto agent (它天生用来
-	// 操作平台)。SeedTool 首插入生效;老库已 seed 的行由 seedAutoDefaultBindings 补绑。
+	// task-op + platform tools default-bind to the built-in Auto agent (it is designed to
+	// operate the platform). SeedTool takes effect on first insert; rows already seeded in an old DB are back-bound by seedAutoDefaultBindings.
 	autoAgents, _ := json.Marshal([]string{"auto"})
 	for _, t := range s.orchestrationTools() {
 		schema, _ := json.Marshal(t.InputSchema())
@@ -389,7 +389,7 @@ func (s *Server) seedOrchestrationTools() {
 		_ = s.m.PG().SeedTool(t.Name(), t.Description(), schema, autoAgents)
 	}
 	s.refreshBuiltinToolSchemas()
-	s.refreshReportFindingSchema() // 新增 reproduction 结构化复现过程参数 → 推到旧库,否则 agent 看不到
+	s.refreshReportFindingSchema() // add the reproduction structured-steps parameter -> push to old DBs, otherwise the agent can't see it
 	s.seedAutoDefaultBindings()
 	s.seedPlannerDefaultBindings()
 	s.seedAutoReportFindingBinding()
@@ -397,22 +397,22 @@ func (s *Server) seedOrchestrationTools() {
 	s.reseedAgentPrompt("mainagent", "prompt_exposure_findings_mainagent_v1", "记录暴露/信息泄露类发现 + 梳理时把已证实暴露落库")
 	s.reseedAgentPrompt("worker", "prompt_exposure_findings_worker_v1", "暴露/信息泄露类也记为发现")
 	s.reseedAgentPrompt("pentest", "prompt_exposure_findings_pentest_v1", "暴露/信息泄露类也记为发现")
-	// 参考 Artemis 0.3.4–0.3.6 的自主性提示词改进（适配我们无 coverage 子系统的口径）：
+	// adapted from the autonomy prompt improvements in Artemis 0.3.4-0.3.6 (fitted to our wording without a coverage subsystem):
 	s.reseedAgentPrompt("planner", "prompt_zerointent_acceptance_v1", "0意图判据重写（两类正当理由）+ 量化验收核对（未达标禁止提前收官）")
 	s.reseedAgentPrompt("worker", "prompt_negfact_threshold_v1", "否定结论证据门槛：穷尽手段前一律标 inferred，别用轻率 observed 焊死方向")
-	// 就地记录复现过程：确认漏洞时在 report_finding 填结构化 reproduction（入口/前置/有序真实步骤/来源）。
+	// record reproduction steps in place: when confirming a vulnerability, fill the structured reproduction in report_finding (entry/prerequisites/ordered real steps/source).
 	s.reseedAgentPrompt("worker", "prompt_reproduction_recipe_v1", "report_finding 填结构化复现过程(就地记录,请求逐字真实)")
 	s.reseedAgentPrompt("pentest", "prompt_reproduction_recipe_pentest_v1", "report_finding 填结构化复现过程")
 	s.reseedAgentPrompt("mainagent", "prompt_reproduction_recipe_mainagent_v1", "report_finding 填结构化复现过程")
-	s.bumpWorkerRunSecondsTo1200() // worker 单轮墙钟 600→1200s（仅未被自定义的默认值；参考 Artemis 0.3.3）
-	// 注：pentest 的默认工具绑定无需迁移——BuiltinToolSeeds 在全新初始化时就把
-	// list_assets/insert_assets/report_finding/list_findings/list_companies 连同
-	// pentest 一起 seed 好了（项目尚无旧库，不做迁移）。
+	s.bumpWorkerRunSecondsTo1200() // worker per-round wall clock 600->1200s (only the default when not customized; from Artemis 0.3.3)
+	// Note: pentest's default tool bindings need no migration, since BuiltinToolSeeds, on a fresh init, seeds
+	// list_assets/insert_assets/report_finding/list_findings/list_companies together with
+	// pentest (the project has no old DB yet, so no migration is done).
 }
 
 // refreshBuiltinToolSchemas propagates code schema/description changes on the
 // orchestration + platform tools into already-seeded rows ONCE per version flag —
-// SeedTool is first-insert-only, so a new param (e.g. spawn_task 的 llm_profile) never
+// SeedTool is first-insert-only, so a new param (e.g. spawn_task's llm_profile) never
 // reaches an old DB otherwise. Preserves each tool's agent binding + enabled flag.
 // Bump the flag whenever these tools' schemas/descriptions change in code.
 func (s *Server) refreshBuiltinToolSchemas() {
@@ -427,8 +427,8 @@ func (s *Server) refreshBuiltinToolSchemas() {
 			log.Printf("[tools] refresh %s schema failed: %v", t.Name(), err)
 		}
 	}
-	// 同时把 planner 的 goal_met 描述刷成代码默认：旧库 seed 的描述带“结束本轮规划”的
-	// 误导，会让 planner 把 goal_met 当成“结束空轮”的手段、刚开跑就误判整个任务完成。
+	// Also refresh the planner's goal_met description to the code default: the description seeded in old DBs carried the misleading phrase "end this planning round",
+	// which made the planner treat goal_met as a way to "end an empty round" and misjudge the whole task as complete right after starting.
 	for _, sd := range agent.BuiltinToolSeeds() {
 		if sd.Key != "goal_met" {
 			continue
@@ -472,11 +472,11 @@ func (s *Server) seedPlannerDefaultBindings() {
 	_ = s.m.pg.SetSetting(flag, "true")
 }
 
-// seedMainagentReportFindingBinding binds report_finding to the 主 Agent
+// seedMainagentReportFindingBinding binds report_finding to the main Agent
 // (mainagent) ONCE. Root-cause fix: the main agent synthesizes/confirms vulns in
 // its orchestration conversation but, without this tool, could only READ findings
 // (list_findings) — never record them — so its conclusions never became finding
-// nodes (missing from 发现页 / 探索图 / 报告). Guarded by a flag; won't re-add
+// nodes (missing from the findings page / exploration graph / report). Guarded by a flag; won't re-add
 // after a deliberate user unbind.
 func (s *Server) seedMainagentReportFindingBinding() {
 	const flag = "mainagent_report_finding_v1"
@@ -547,7 +547,7 @@ func (s *Server) reseedAgentPrompt(key, flag, note string) {
 // first-insert-only — so the newly-added structured `reproduction` param wouldn't reach
 // existing DBs' agents without this. Won't clobber user param-default edits after the flag.
 func (s *Server) refreshReportFindingSchema() {
-	const flag = "tool_schema_refresh_report_finding_repro_v3" // v3: 要求每步写标准 HTTP 报文(非 curl)、响应不用...省略
+	const flag = "tool_schema_refresh_report_finding_repro_v3" // v3: require each step to use a standard HTTP message (not curl), responses not abbreviated with ...
 	if v, _, _ := s.m.pg.GetSetting(flag); v == "true" {
 		return
 	}
@@ -570,7 +570,7 @@ func (s *Server) refreshReportFindingSchema() {
 // before Auto existed still give Auto its default toolset — without re-adding it
 // after a user deliberately unbinds.
 func (s *Server) seedAutoDefaultBindings() {
-	const flag = "auto_default_bindings_v3" // v3: 替换旧资产工具名，加入 insert_assets/add_company_scope
+	const flag = "auto_default_bindings_v3" // v3: replace old asset tool names, add insert_assets/add_company_scope
 	if v, _, _ := s.m.pg.GetSetting(flag); v == "true" {
 		return
 	}
@@ -579,7 +579,7 @@ func (s *Server) seedAutoDefaultBindings() {
 		keys = append(keys, t.Name())
 	}
 	keys = append(keys, platformToolKeys...)
-	// 资产工具：Auto 操作平台常要看/登记资产、管理公司范围。
+	// asset tools: operating the Auto platform often needs to view/register assets and manage company scope.
 	keys = append(keys, "insert_assets", "add_company_scope", "list_assets")
 	if err := s.m.pg.AddAgentToToolBinding("auto", keys); err != nil {
 		log.Printf("[auto] 默认绑定失败: %v", err)

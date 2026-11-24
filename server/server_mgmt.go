@@ -218,7 +218,7 @@ func (s *Server) pgSaveAgentConfig(w http.ResponseWriter, r *http.Request) {
 		RunSeconds       *int   `json:"run_seconds"`
 		WebSearch        *bool  `json:"web_search"`
 		InteractiveShell *bool  `json:"interactive_shell"`
-		LLMProfileID     *int64 `json:"llm_profile_id"` // 分级绑定；0/负=清除绑定→用全局激活配置
+		LLMProfileID     *int64 `json:"llm_profile_id"` // tiered binding; 0/negative=clear the binding -> use the global active config
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeErr(w, 400, err.Error())
@@ -258,9 +258,9 @@ func (s *Server) pgSaveAgentConfig(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, 500, err.Error())
 			return
 		}
-		s.invalidateProfileAgents() // a role's 分级 binding changed → pinned-task agents must rebuild too
+		s.invalidateProfileAgents() // a role's tiered binding changed -> pinned-task agents must rebuild too
 	}
-	// rebuild the live agents so the new max_turns/run_seconds/分级绑定 apply without a restart.
+	// rebuild the live agents so the new max_turns/run_seconds/tiered binding apply without a restart.
 	s.cfgMu.Lock()
 	cfg, on := s.llmCfg, s.llmOn
 	s.cfgMu.Unlock()
@@ -293,11 +293,11 @@ func (s *Server) pgGetAgent(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{
 		"agent": agentDTO(a), "prompt": cur, "variables": vars, "versions": vers,
 		"visibility":               map[string]any{"mcp": mcp, "skill": sk},
-		"wrapup_prompt":            a.WrapupPrompt,                  // 已保存的收尾提示词(空=用内置默认)
-		"wrapup_default":           agent.WrapupDefault(a.Key),      // 内置默认(供占位/恢复默认)
-		"wrapup_max_turns":         a.WrapupMaxTurns,                // 已保存的收尾轮数(0=用内置默认)
-		"wrapup_max_turns_default": agent.WrapupTurnsDefault(a.Key), // 内置默认轮数(供 "0=默认N" 提示)
-		// 任务级超时收尾词(仅 worker/planner 有内置默认;task_timeout_supported 供前端决定是否显示该分区)
+		"wrapup_prompt":            a.WrapupPrompt,                  // saved finalization prompt (empty=use the built-in default)
+		"wrapup_default":           agent.WrapupDefault(a.Key),      // built-in default (for placeholder/restore-default)
+		"wrapup_max_turns":         a.WrapupMaxTurns,                // saved finalization turn count (0=use the built-in default)
+		"wrapup_max_turns_default": agent.WrapupTurnsDefault(a.Key), // built-in default turn count (for the "0=default N" hint)
+		// task-level timeout finalization wording (only worker/planner have a built-in default; task_timeout_supported lets the frontend decide whether to show this section)
 		"task_timeout_wrapup_supported":         agent.TaskTimeoutWrapupDefault(a.Key) != "",
 		"task_timeout_wrapup_prompt":            a.TaskTimeoutWrapupPrompt,
 		"task_timeout_wrapup_default":           agent.TaskTimeoutWrapupDefault(a.Key),
@@ -330,7 +330,7 @@ func (s *Server) pgSavePrompt(w http.ResponseWriter, r *http.Request) {
 }
 
 // pgResetPrompt restores an agent's prompt body to the in-code built-in default
-// (段 [A]). Only built-in agents have a code default; custom agents have none.
+// (section [A]). Only built-in agents have a code default; custom agents have none.
 func (s *Server) pgResetPrompt(w http.ResponseWriter, r *http.Request) {
 	pg, a, ok := s.agentByKey(w, r)
 	if !ok {
@@ -419,7 +419,7 @@ func (s *Server) pgSaveTaskTimeoutWrapup(w http.ResponseWriter, r *http.Request)
 		writeErr(w, 400, err.Error())
 		return
 	}
-	turns := a.TaskTimeoutWrapupMaxTurns // 未传则保留原值
+	turns := a.TaskTimeoutWrapupMaxTurns // keep the original value when not provided
 	if body.MaxTurns != nil {
 		turns = *body.MaxTurns
 		if turns < 0 {
@@ -535,7 +535,7 @@ func (s *Server) pgSetAgentVisibility(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
-// ---------- tools (内置工具目录) ----------
+// ---------- tools (built-in tool catalog) ----------
 
 func (s *Server) pgListTools(w http.ResponseWriter, r *http.Request) {
 	pg := s.pg(w)
@@ -591,7 +591,7 @@ func (s *Server) pgUpdateTool(w http.ResponseWriter, r *http.Request) {
 }
 
 // pgResetTool overwrites a tool row with its code-defined defaults (description,
-// schema, agent binding) and re-enables it — the explicit "恢复默认" action, since
+// schema, agent binding) and re-enables it — the explicit "restore default" action, since
 // startup seeding is first-insert-only and never overwrites edits.
 func (s *Server) pgResetTool(w http.ResponseWriter, r *http.Request) {
 	pg := s.pg(w)
@@ -657,8 +657,8 @@ func (s *Server) pgSaveMCP(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, err.Error())
 		return
 	}
-	// stdio MCP 由服务端把 command/args 作为子进程拉起，等价于宿主机命令执行——收归 admin。
-	// 远程 MCP（http/sse）不在宿主机起进程，仍按 mcp:write 开放给 operator。
+	// stdio MCP: the server launches command/args as a child process, equivalent to host command execution, so it is restricted to admin.
+	// remote MCP (http/sse) starts no process on the host, so it stays open to operator under mcp:write.
 	if strings.EqualFold(strings.TrimSpace(m.Transport), "stdio") && !isAdmin(r) {
 		writeErr(w, 403, "solo l'amministratore può creare/modificare servizi MCP di tipo stdio (avvia un sottoprocesso sulla macchina host)")
 		return
@@ -748,7 +748,7 @@ func (s *Server) pgMCPTools(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"tools": tools})
 }
 
-// ---------- skills (文件系统) ----------
+// ---------- skills (filesystem) ----------
 
 type skillFileNode struct {
 	Name          string   `json:"name"`
@@ -1585,12 +1585,12 @@ func (s *Server) pgActivateProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 // llmRoleKeys are the engine roles bound to an LLM profile via agents.llm_profile_id
-// (planner/worker/mainagent) — the "角色分工" (division of labor). "report" is separate
+// (planner/worker/mainagent) — the "role specialization" (division of labor). "report" is separate
 // (settings-based, complete() path). goals/chat can join later.
 var llmRoleKeys = []string{"planner", "worker", "mainagent"}
 
 // pgLLMRoles returns each role's bound LLM profile id (0 = follow global active) — the
-// 角色分工 matrix. Lets the user route e.g. worker→cheap, 报告富化→strong (Claude).
+// role-specialization matrix. Lets the user route e.g. worker->cheap, report-enrichment->strong (Claude).
 func (s *Server) pgLLMRoles(w http.ResponseWriter, r *http.Request) {
 	pg := s.pg(w)
 	if pg == nil {
@@ -1681,7 +1681,7 @@ func (s *Server) pgSetLLMPool(w http.ResponseWriter, r *http.Request) {
 }
 
 // pgResetLLMPool clears a tripped profile's breaker (profile_id=0 → clear all) — the
-// UI's "立即恢复" action.
+// UI's "restore now" action.
 func (s *Server) pgResetLLMPool(w http.ResponseWriter, r *http.Request) {
 	if s.pg(w) == nil {
 		return
@@ -1725,7 +1725,7 @@ func (s *Server) pgSetProfilePool(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
-// --- prompt template helpers (Go text/template + catalog 白名单) ---
+// --- prompt template helpers (Go text/template + catalog allowlist) ---
 
 // validateTemplate parses the template and rejects any {{.Var}} not in the catalog.
 // Returns "" if valid, otherwise an error message.

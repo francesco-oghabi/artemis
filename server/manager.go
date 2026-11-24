@@ -27,20 +27,20 @@ import (
 type Task struct {
 	ID           string `json:"id"`
 	ExpID        int64  `json:"exploration_id"`
-	Name         string `json:"name"` // 简短任务名/目标；空=回退 #id·描述
+	Name         string `json:"name"` // short task name/goal; empty = fall back to #id·description
 	Description  string `json:"description"`
 	Goal         string `json:"goal"`
 	CreatedAt    int64  `json:"created_at"`
-	CompletedAt  int64  `json:"completed_at,omitempty"` // 进入终态的 unix 秒;0=未完成
+	CompletedAt  int64  `json:"completed_at,omitempty"` // unix seconds when it entered a terminal state; 0=not finished
 	Paused       bool   `json:"paused"`
-	ParentRef    string `json:"parent_ref,omitempty"`     // 父任务 id(编排 spawn 记录)
-	LLMProfileID *int64 `json:"llm_profile_id,omitempty"` // 指定运行本任务 planner/worker 的 LLM 配置;nil=用全局激活配置
-	Status       string `json:"status"`                   // persisted lifecycle status (done/failed/timeout 为终态；空/其它则由运行态推导)
-	// 任务级超时(见 docs/任务级超时与收尾设计.md)。DeadlineAt/FirstRunAt 为 unix 秒,0=未设/未运行。
+	ParentRef    string `json:"parent_ref,omitempty"`     // parent task id (orchestration spawn record)
+	LLMProfileID *int64 `json:"llm_profile_id,omitempty"` // the LLM config to run this task's planner/worker on; nil=use the global active config
+	Status       string `json:"status"`                   // persisted lifecycle status (done/failed/timeout are terminal; empty/other is derived from runtime state)
+	// task-level timeout (see the task-level timeout and finalization design doc). DeadlineAt/FirstRunAt are unix seconds, 0=unset/not run.
 	TimeoutSeconds int                    `json:"timeout_seconds"`
 	FirstRunAt     int64                  `json:"first_run_at,omitempty"`
 	DeadlineAt     int64                  `json:"deadline_at,omitempty"`
-	Egress         string                 `json:"egress,omitempty"` // 出口代理:''=跟随全局|'direct'=直连|'proxy'=走全局代理
+	Egress         string                 `json:"egress,omitempty"` // egress proxy: ''=follow global | 'direct'=direct connection | 'proxy'=use the global proxy
 	Store          *pgdb.ExplorationStore `json:"-"`
 	Guard          *guard.Guard           `json:"-"`
 	notify         chan struct{}
@@ -65,9 +65,9 @@ type Manager struct {
 	mu        sync.RWMutex
 	tasks     map[string]*Task
 	active    string
-	trafficOn bool // 流量捕获开关（默认关；settings.traffic_capture）
-	// 联网搜索开关与来源（默认关；settings.web_search_*）。brave-free 需要 braveKey；tavily 需要 tavilyKey。
-	// webSearchProxy 是独立出口代理(http/https/socks5)，与记录流量的 MITM 代理无关。
+	trafficOn bool // traffic-capture switch (default off; settings.traffic_capture)
+	// web-search switch and source (default off; settings.web_search_*). brave-free needs braveKey; tavily needs tavilyKey.
+	// webSearchProxy is a dedicated egress proxy (http/https/socks5), unrelated to the traffic-recording MITM proxy.
 	webSearchOn      bool
 	webSearchBackend string
 	braveKey         string
@@ -84,11 +84,11 @@ const (
 	settingTavilyKey        = "tavily_search_api_key"
 	settingWebSearchProxy   = "web_search_proxy"
 	settingWorkers          = "workers"
-	settingLLMPoolEnabled   = "llm_pool_enabled" // LLM 故障转移(轮询)总开关，默认关
-	settingGlobalProxy      = "global_proxy"     // 全局出口代理(http/https/socks5)：agent 目标流量作 MITM 上游出网；空=直连
-	settingXSSExpandCap     = "xss_expand_cap"      // 确定性 XSS 扩展器一次最多写入的验证意图数
-	settingRedirectExpandCap = "redirect_expand_cap" // 确定性 open-redirect 扩展器一次最多写入的验证意图数
-	settingGoalMetDrainCap  = "goalmet_drain_cap"    // 目标达成后收尾前最多再执行的待办意图数(0=不排空)
+	settingLLMPoolEnabled   = "llm_pool_enabled" // master switch for LLM failover (polling), default off
+	settingGlobalProxy      = "global_proxy"     // global egress proxy (http/https/socks5): the agent's target traffic exits as the MITM upstream; empty=direct connection
+	settingXSSExpandCap     = "xss_expand_cap"      // max verification intents the deterministic XSS expander writes at once
+	settingRedirectExpandCap = "redirect_expand_cap" // max verification intents the deterministic open-redirect expander writes at once
+	settingGoalMetDrainCap  = "goalmet_drain_cap"    // max pending intents still executed after goals are met before finalization (0=no drain)
 	// defaultWebSearchBackend is used when web search is on but no backend was picked.
 	defaultWebSearchBackend = "ddgs"
 	// defaultWorkers is the concurrent work-agent count when the setting is unset.
@@ -201,7 +201,7 @@ func NewManager(dir, proxyAddr string) (*Manager, error) {
 			log.Printf("[traffic] disabled: %v", err)
 		} else {
 			m.traffic = tr
-			m.applyGlobalProxy() // 恢复持久化的全局出口代理(作 MITM 上游)
+			m.applyGlobalProxy() // restore the persisted global egress proxy (as the MITM upstream)
 			go func() {
 				log.Printf("[traffic] recording proxy on %s (set HTTP_PROXY=%s + trust _ca CA)", proxyAddr, tr.ProxyAddr())
 				if err := tr.Start(); err != nil {
@@ -247,7 +247,7 @@ func (m *Manager) TrafficEnabled() bool {
 	return m.trafficOn
 }
 
-// LLMPoolEnabled reports whether LLM failover (轮询) is on (default off). Read from
+// LLMPoolEnabled reports whether LLM failover (polling) is on (default off). Read from
 // PG each call — it changes rarely and is never on a hot path.
 func (m *Manager) LLMPoolEnabled() bool {
 	if m.pg == nil {
@@ -602,7 +602,7 @@ func taskFromPG(pt *pgdb.Task, store *pgdb.ExplorationStore, ic *intercept.Inter
 }
 
 // CreateTask creates a task + its exploration and makes it active.
-// timeoutSeconds is the task-level wall-clock budget (0 = 不限时).
+// timeoutSeconds is the task-level wall-clock budget (0 = no limit).
 func (m *Manager) CreateTask(name, description, goal, egress string, llmProfileID *int64, timeoutSeconds int) (*Task, error) {
 	pt, err := m.pg.CreateTask(name, description, goal, egress, llmProfileID, timeoutSeconds)
 	if err != nil {
@@ -613,7 +613,7 @@ func (m *Manager) CreateTask(name, description, goal, egress string, llmProfileI
 	m.tasks[t.ID] = t
 	m.active = t.ID
 	m.mu.Unlock()
-	m.applyTaskEgress(t.ID) // 新任务成为 active → 据其出口选择设 MITM 上游
+	m.applyTaskEgress(t.ID) // a new task becomes active -> set the MITM upstream according to its egress choice
 	return t, nil
 }
 
@@ -692,7 +692,7 @@ func (m *Manager) TaskStatus(id string) string {
 }
 
 // StampTaskFirstRun stamps first_run_at + deadline_at on the first real run (idempotent
-// in DB) and mirrors deadline_at on the live handle. Returns the deadline unix (0 = 不限).
+// in DB) and mirrors deadline_at on the live handle. Returns the deadline unix (0 = no limit).
 func (m *Manager) StampTaskFirstRun(id string) (int64, error) {
 	n, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
@@ -773,7 +773,7 @@ func (m *Manager) SetTaskStatus(id, status string) error {
 	return nil
 }
 
-// ReactivateTask brings a stopped/finished task back to a runnable state (继续运行)
+// ReactivateTask brings a stopped/finished task back to a runnable state (continue running)
 // on both PG and the in-memory handle. Caller then kicks the engine (Rerun).
 func (m *Manager) ReactivateTask(id string) error {
 	n, err := strconv.ParseInt(id, 10, 64)
@@ -814,7 +814,7 @@ func (m *Manager) UpdateTask(id, name, description, goal, egress string, timeout
 	}
 	m.mu.Unlock()
 	if active {
-		m.applyTaskEgress(id) // 编辑了当前任务的出口选择 → 立即生效
+		m.applyTaskEgress(id) // edited the current task's egress choice -> takes effect immediately
 	}
 	return nil
 }
@@ -869,7 +869,7 @@ func (m *Manager) SetActive(id string) bool {
 	if !ok {
 		return false
 	}
-	m.applyTaskEgress(id) // 切换当前任务 → 据其出口选择设 MITM 上游
+	m.applyTaskEgress(id) // switched the current task -> set the MITM upstream according to its egress choice
 	return true
 }
 

@@ -81,8 +81,10 @@ func run() int {
 		log.Printf("[config] 配置文件: %s (不存在 — 将仅尝试环境变量 ARTEMIS_PG_DSN)", cfgPath)
 	}
 
-	// 数据目录持久化守卫：dataDir 落在 /tmp 或系统临时目录时，重启即清空——流量/报告/转录
-	// 全部静默丢失。DB 另存(持久)，但文件数据必须在持久卷上。大声告警，避免把工作数据放临时目录。
+	// Data-directory persistence guard: when dataDir lands in /tmp or a system temp directory, it is
+	// wiped on restart, so traffic/reports/transcripts are all silently lost. The DB is stored
+	// elsewhere (persistent), but file data must live on a persistent volume. Warn loudly to avoid
+	// putting working data in a temp directory.
 	if abs, _ := filepath.Abs(*dataDir); abs != "" {
 		if abs == "/tmp" || strings.HasPrefix(abs, "/tmp/") || strings.HasPrefix(abs, os.TempDir()) {
 			log.Printf("⚠️  [data] dataDir=%s 位于临时目录，重启即清空(流量/报告/转录会全部丢失)！请用 -data 指向持久目录，如 ~/artemis-data 或 /opt/artemis/data。", abs)

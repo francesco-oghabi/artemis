@@ -8,7 +8,7 @@ import (
 	"artemis/db"
 )
 
-// 审计日志 API（/api/audit/logs）。完整审计中心后续增强。
+// Audit log API (/api/audit/logs). A full audit center is a later enhancement.
 
 // GET /api/audit/logs?category=&actor=&action=&result=&limit=&offset=
 func (s *Server) auditLogs(w http.ResponseWriter, r *http.Request) {
@@ -34,7 +34,7 @@ func (s *Server) auditLogs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"logs": logs, "total": total})
 }
 
-// auditActor 从当前请求取操作者用户名（审计记录用）。
+// auditActor gets the actor's username from the current request (for audit records).
 func auditActor(r *http.Request) string {
 	if acc := CurrentAccess(r); acc != nil {
 		return acc.User.Username
