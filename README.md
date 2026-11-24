@@ -10,7 +10,7 @@ English | [Italiano](README.it.md)
 
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white)](go.mod)
-[![Status](https://img.shields.io/badge/status-research%20%2F%20WIP-orange.svg)](docs/ROADMAP.md)
+![Status](https://img.shields.io/badge/status-research%20%2F%20WIP-orange.svg)
 
 </div>
 
@@ -232,7 +232,7 @@ item is either a structural guarantee in code or a measured lever:
 
 Several of these subsystems do not exist in the upstreams at all (the knowledge base,
 fact dedup, the termination wiring); the rest are new verifiers and controls layered on
-top. See [docs/BENCHMARK.md](docs/BENCHMARK.md) and [docs/ROADMAP.md](docs/ROADMAP.md).
+top. See [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
 ## Quick start
 
@@ -282,7 +282,6 @@ container name (`http://juice-shop:3000`). See [docs/BENCHMARK.md](docs/BENCHMAR
   intervention-levels taxonomy.
 - [docs/BENCHMARK.md](docs/BENCHMARK.md): methodology, the frontier reference, the levers,
   and honest results.
-- [docs/ROADMAP.md](docs/ROADMAP.md): where this is going.
 
 ## License and responsible use
 

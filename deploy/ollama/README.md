@@ -75,9 +75,9 @@ VRAM is not the constraint; the real limit is the memory bandwidth shared across
 (per-slot throughput drops while the aggregate rises). Start at 2 and consider 3 only
 with run data in hand (`nvidia-smi` + tokens/sec).
 
-## Link to the Artemis tuning
+## Link to the OpenArtemis tuning
 
-This Ollama-side tuning pairs with two Artemis-side choices (see `docs/ROADMAP.md`):
+This Ollama-side tuning pairs with two OpenArtemis-side choices:
 
 1. **Per-intent worker budget** (worker agent: `max_turns=100`, `run_seconds=720`):
    prevents a single pathological intent from sequestering a worker. On budget exhaustion

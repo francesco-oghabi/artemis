@@ -492,7 +492,7 @@ var baseURLRe = regexp.MustCompile(`(?i)\bhttps?://[^\s/"'<>)\]]+`)
 // after a class fires it is flagged (per task+class) and never runs again. This
 // seeds each verification frontier from the discovered surface, removing the
 // planner's chance-driven variance (tasks 51/53 never invoked the XSS oracle; 52
-// did). See agent.ExpandReadyClasses and docs/ROADMAP.md 4b/4b-bis.
+// did). See agent.ExpandReadyClasses.
 // expandClassLabel is a human label for the expander activity line, per class.
 func expandClassLabel(name string) string {
 	switch name {

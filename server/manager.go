@@ -98,8 +98,8 @@ const (
 	defaultXSSExpandCap      = 40
 	defaultRedirectExpandCap = 25
 	// defaultGoalMetDrainCap bounds how many already-dispatched OPEN intents the engine
-	// executes AFTER all goals are met, before closing the task (see engine.drainFrontier
-	// and docs/ROADMAP.md 4d). 0 disables draining (immediate close, the old
+	// executes AFTER all goals are met, before closing the task (see
+	// engine.drainFrontier). 0 disables draining (immediate close, the old
 	// behavior). The default lets a breadth-heavy planner's dispatched frontier run instead
 	// of being orphaned the instant the last goal is proven.
 	defaultGoalMetDrainCap = 60

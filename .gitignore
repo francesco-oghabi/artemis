@@ -48,3 +48,6 @@ docker-compose.override.yml
 .DS_Store
 Thumbs.db
 *.local
+
+# Private planning (never publish)
+docs/ROADMAP.private.md
