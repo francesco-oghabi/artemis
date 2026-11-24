@@ -1,4 +1,4 @@
-// Artemis 品牌标志（狐狸盘尾圆徽，透明底 PNG）——由 className 控制尺寸，明暗主题通用。
+// Artemis brand logo (fox with curled tail round emblem, transparent-background PNG): size controlled by className, works in both light and dark themes.
 export function ArtemisLogo({ className }: { className?: string }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element

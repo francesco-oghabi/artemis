@@ -6,8 +6,8 @@ import { I18nextProvider } from "react-i18next";
 
 import i18n, { DEFAULT_LANG, LANG_STORAGE_KEY, isLangCode } from "@/i18n/config";
 
-// 首帧统一用 DEFAULT_LANG（与静态导出预渲染一致，避免 hydration 文本错配），
-// 挂载后从 localStorage 读取用户选择的语言并切换，同时同步 <html lang>。
+// The first frame uses DEFAULT_LANG uniformly (consistent with static-export prerendering, avoiding hydration text mismatch),
+// after mount, read the user-selected language from localStorage and switch, also syncing <html lang>.
 export function I18nProvider({ children }: { readonly children: React.ReactNode }) {
   useEffect(() => {
     const stored = typeof window === "undefined" ? null : localStorage.getItem(LANG_STORAGE_KEY);

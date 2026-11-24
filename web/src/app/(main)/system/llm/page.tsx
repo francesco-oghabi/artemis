@@ -28,17 +28,17 @@ import { api } from "@/lib/api";
 import type { LLMProfile, LLMPoolStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-// 思考强度档位（仅在开关打开时生效）。
+// Thinking effort levels (only take effect when the toggle is on).
 const EFFORT_LEVELS: { value: string; labelKey: string }[] = [
   { value: "low", labelKey: "llm.effort.low" },
   { value: "medium", labelKey: "llm.effort.medium" },
   { value: "high", labelKey: "llm.effort.high" },
   { value: "max", labelKey: "llm.effort.max" },
 ];
-// 思考模式三态 ↔ 存库字符串 reasoning_effort：
-//   none→""（thinking / reasoning_effort 两个字段都【不发送】，兼容不支持该字段的模型，如 MiniMax）
-//   off →"off"（发送 thinking:{type:disabled}，用于默认开启思考、需要显式关闭的模型）
-//   on  →强度值（发送 thinking:{enabled} + reasoning_effort）
+// Thinking-mode tri-state ↔ stored string reasoning_effort:
+//   none→"" (neither the thinking nor reasoning_effort field is sent, for compatibility with models that do not support it, e.g. MiniMax)
+//   off →"off" (sends thinking:{type:disabled}, for models that enable thinking by default and must be explicitly turned off)
+//   on  →effort value (sends thinking:{enabled} + reasoning_effort)
 type ThinkMode = "none" | "off" | "on";
 const THINK_MODES: { value: ThinkMode; labelKey: string }[] = [
   { value: "none", labelKey: "llm.thinkMode.none" },
@@ -289,7 +289,7 @@ export default function LLMPage() {
   const [keyHint, setKeyHint] = React.useState("");
   const [rps, setRps] = React.useState("0");
   const [rpm, setRpm] = React.useState("0");
-  const [cw, setCw] = React.useState("0"); // 上下文窗口(K tokens);0=默认200K
+  const [cw, setCw] = React.useState("0"); // context window (K tokens); 0 = default 200K
   const [thinkMode, setThinkMode] = React.useState<ThinkMode>("none");
   const [effort, setEffort] = React.useState("high");
   const [testing, setTesting] = React.useState(false);
@@ -394,7 +394,7 @@ export default function LLMPage() {
     try {
       // test with the SAME thinking params the profile will run with, so an
       // unsupported reasoning field fails here instead of only at run time.
-      // 传当前选中 profile 的 id：输入框留空时，后端用该 profile 已存的 key 测试。
+      // pass the id of the currently selected profile: when the input is left empty, the backend tests with the key already stored for that profile.
       const r = await api.testLLM(
         format,
         model,
@@ -477,7 +477,7 @@ export default function LLMPage() {
         <p className="text-muted-foreground text-sm">{t("llm.subtitle")}</p>
       </div>
       <div className="flex flex-1 flex-col gap-4 md:gap-6">
-        {/* LLM 故障转移(轮询)：无规则命中的额度耗尽/坏网络时自动切下一个配置 */}
+        {/* LLM failover (polling): on quota exhaustion or bad network with no rule match, automatically switch to the next profile */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -574,7 +574,7 @@ export default function LLMPage() {
             )}
           </CardContent>
         </Card>
-        {/* LLM 角色分工：各角色映射到某配置，各家 LLM 合理分工 */}
+        {/* LLM role assignment: each role maps to a profile, splitting work sensibly across the different LLMs */}
         <Card>
           <CardHeader>
             <CardTitle>{t("llm.roles.title")}</CardTitle>

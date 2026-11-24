@@ -75,7 +75,7 @@ export default function ReportsPage() {
   const fileRef = React.useRef<HTMLInputElement>(null);
   const pollRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // 新建报告（按任务）
+  // New report (by task)
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [selTask, setSelTask] = React.useState("");
@@ -86,13 +86,13 @@ export default function ReportsPage() {
   const [taskFindings, setTaskFindings] = React.useState<Finding[]>([]);
   const [selFindings, setSelFindings] = React.useState<Set<string>>(new Set());
   const [loadingFindings, setLoadingFindings] = React.useState(false);
-  // 正常交付流程：人工【确认】漏洞后才进报告。默认只列已确认(confirmed)漏洞供勾选，
-  // 并默认全选；给个开关兜底可展开全部（含待处理/误报等）。
+  // Normal delivery flow: findings enter the report only after a human [confirms] them. By default only confirmed findings are listed for selection,
+  // and all are selected by default; a fallback toggle can expand everything (including pending / false-positive, etc.).
   const [showAllFindings, setShowAllFindings] = React.useState(false);
   const [generating, setGenerating] = React.useState(false);
   const [selTemplate, setSelTemplate] = React.useState("");
 
-  // 报告模版（命名预设）
+  // Report templates (named presets)
   const [templates, setTemplates] = React.useState<ReportTemplate[]>([]);
   const [tplOpen, setTplOpen] = React.useState(false);
   const [tplForm, setTplForm] = React.useState<ReportTemplate>(emptyTemplate());
@@ -100,7 +100,7 @@ export default function ReportsPage() {
   const loadReports = React.useCallback(() => {
     api.reports().then(setReports).catch(() => {});
   }, []);
-  // resolve the unified task label (名称优先→#id·描述) for the list, consistent
+  // resolve the unified task label (name first → #id·description) for the list, consistent
   // with findings/dashboard/assets; falls back to the stored task_desc.
   const tmap = React.useMemo(() => taskMap(tasks), [tasks]);
   const reportTaskLabel = React.useCallback(
@@ -622,7 +622,7 @@ export default function ReportsPage() {
               <Label>{t("reports.clientName")}</Label>
               <Input value={client} onChange={(e) => setClient(e.target.value)} placeholder={t("reports.clientPlaceholder")} />
             </div>
-            {/* findings selector — confirmed-only by default (正常交付流程) */}
+            {/* findings selector — confirmed-only by default (normal delivery flow) */}
             {selTask && (
               <div className="min-w-0 space-y-1.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -647,7 +647,7 @@ export default function ReportsPage() {
                         </button>
                       </>
                     )}
-                    {/* 兜底开关：仅已确认 ⇄ 全部（含待处理/误报） */}
+                    {/* Fallback toggle: confirmed-only ⇄ all (including pending / false-positive) */}
                     <button
                       type="button"
                       className="text-primary hover:underline"
