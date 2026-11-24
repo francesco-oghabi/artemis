@@ -35,7 +35,7 @@ func (s *Server) extractFindings(w http.ResponseWriter, r *http.Request) {
 	// "review" can surface them.
 	if facts, ferr := t.Store.ListByKind(db.KindFact, 200); ferr == nil && len(facts) > 0 {
 		var fb strings.Builder
-		fb.WriteString("\n\n【探索图已记录的事实（可能含未升级为发现的暴露/攻击面）】\n")
+		fb.WriteString("\n\n[Facts already recorded in the exploration graph (may include exposures/attack surfaces not yet promoted to findings)]\n")
 		for _, n := range facts {
 			var p struct {
 				Summary string `json:"summary"`
@@ -52,7 +52,7 @@ func (s *Server) extractFindings(w http.ResponseWriter, r *http.Request) {
 				if rr := []rune(d); len(rr) > 200 {
 					d = string(rr[:200])
 				}
-				fb.WriteString("：")
+				fb.WriteString(": ")
 				fb.WriteString(d)
 			}
 			fb.WriteString("\n")
@@ -111,14 +111,11 @@ func (s *Server) extractFindings(w http.ResponseWriter, r *http.Request) {
 
 func normalizeSeverity(s string) string {
 	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "critical", "严重", "high", "高危", "高":
-		if strings.Contains(strings.ToLower(s), "crit") || strings.Contains(s, "严重") {
-			return "high" // Artemis severity set is high|medium|low
-		}
+	case "critical", "high": // severity set is high|medium|low, so critical collapses to high
 		return "high"
-	case "medium", "中危", "中", "med":
+	case "medium", "med":
 		return "medium"
-	case "low", "低危", "低", "info", "信息":
+	case "low", "info":
 		return "low"
 	}
 	return "medium"

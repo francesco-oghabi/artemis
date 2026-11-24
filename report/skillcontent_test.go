@@ -26,11 +26,11 @@ func TestSkillSeedAndLoad(t *testing.T) {
 
 	// A user edit to a skeleton file overrides the built-in.
 	edited := `{"intro":"CUSTOM INTRO","phases":[{"name":"Phase X","desc":"custom"}]}`
-	p := filepath.Join(dir, reportSkillName, "skeleton", "zh-CN", "methodology.json")
+	p := filepath.Join(dir, reportSkillName, "skeleton", "en-US", "methodology.json")
 	if err := os.WriteFile(p, []byte(edited), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	sc = loadSkillContent(dir, "zh-CN")
+	sc = loadSkillContent(dir, "en-US")
 	if sc.MethodologyIntro != "CUSTOM INTRO" || len(sc.Methodology) != 1 || sc.Methodology[0].Name != "Phase X" {
 		t.Fatalf("edit not picked up: intro=%q phases=%d", sc.MethodologyIntro, len(sc.Methodology))
 	}
@@ -43,8 +43,8 @@ func TestSkillSeedAndLoad(t *testing.T) {
 	if err := os.WriteFile(p, []byte("{not json"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	sc = loadSkillContent(dir, "zh-CN")
-	if sc.MethodologyIntro != methodologyIntro("zh-CN") {
+	sc = loadSkillContent(dir, "en-US")
+	if sc.MethodologyIntro != methodologyIntro("en-US") {
 		t.Fatalf("corrupt file did not fall back: %q", sc.MethodologyIntro)
 	}
 

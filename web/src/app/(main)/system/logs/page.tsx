@@ -43,7 +43,7 @@ function fmtTime(ts: string) {
   const d = new Date(ts);
   if (isNaN(d.getTime())) return "";
   // Show full date + time (login logs etc. need to be distinguished by date; time alone would be misleading).
-  return d.toLocaleString("zh-CN", {
+  return d.toLocaleString("en-US", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

@@ -248,8 +248,8 @@ type steerHooks struct {
 
 func (h steerHooks) PreToolUse(ctx context.Context, name string, input []byte) (bool, string, []byte) {
 	if msg, ok := h.drain(); ok {
-		return true, "【规划者实时纠偏】" + msg +
-			"\n（这是规划者对本意图的即时指令；本次工具调用未执行，请据此调整下一步。若与你当前打算冲突，以此为准。）", nil
+		return true, "[Planner live course-correction] " + msg +
+			"\n(This is the planner's immediate instruction for this intent; this tool call was not executed, adjust your next step accordingly. If it conflicts with what you currently intend, this takes precedence.)", nil
 	}
 	if h.inner != nil {
 		return h.inner.PreToolUse(ctx, name, input)
@@ -293,7 +293,7 @@ func (e *Engine) emitActivity(t *Task, r db.Activity) {
 	if err != nil {
 		// NO LONGER SILENT: dropping a record breaks command↔result pairing in the
 		// trace — a tool_use whose tool_result was lost shows as "in progress" forever.
-		log.Printf("[activity] task %s 重试后仍失败、丢弃该记录 (kind=%s tool=%s tuid=%s): %v",
+		log.Printf("[activity] task %s still failed after retries, dropping this record (kind=%s tool=%s tuid=%s): %v",
 			t.ID, r.Kind, r.Tool, r.ToolUseID, err)
 		e.touch(t.ID)
 		return
@@ -317,12 +317,12 @@ func (e *Engine) appendActivity(t *Task, r db.Activity) (int64, error) {
 	for attempt := 1; attempt <= 3; attempt++ {
 		if id, err = t.Store.AppendActivity(r); err == nil {
 			if attempt > 1 {
-				log.Printf("[activity] task %s 写入第 %d 次重试成功 (worker=%s kind=%s tool=%s)",
+				log.Printf("[activity] task %s write succeeded on retry #%d (worker=%s kind=%s tool=%s)",
 					t.ID, attempt, r.Worker, r.Kind, r.Tool)
 			}
 			return id, nil
 		}
-		log.Printf("[activity] task %s 写入失败 (第 %d/3 次, worker=%s kind=%s tool=%s): %v",
+		log.Printf("[activity] task %s write failed (attempt %d/3, worker=%s kind=%s tool=%s): %v",
 			t.ID, attempt, r.Worker, r.Kind, r.Tool, err)
 		time.Sleep(time.Duration(attempt) * 25 * time.Millisecond)
 	}
@@ -432,7 +432,7 @@ func (e *Engine) plannerLoop(ctx context.Context, t *Task) {
 			e.maybeExpandIntents(t) // once per task, when the target JS bundle is captured
 			emit := func(r db.Activity) { e.emitActivity(t, r) }
 			ectx := e.clockCtx(e.execContextFor(ctx, t.ID), t, false) // cancellable by Pause; carries the task deadline
-			log.Printf("[planner] task %s 规划中…", t.ID)
+			log.Printf("[planner] task %s planning…", t.ID)
 			// round marker: each Plan() is one planner round; emit a boundary so the
 			// UI can separate rounds in the transcript (kind='round').
 			e.emitActivity(t, db.Activity{Worker: "planner", Kind: "round",
@@ -446,9 +446,9 @@ func (e *Engine) plannerLoop(ctx context.Context, t *Task) {
 			e.decInflight(t.ID)
 			switch {
 			case err != nil && ectx.Err() == nil:
-				log.Printf("[planner] task %s 规划出错: %v", t.ID, err)
+				log.Printf("[planner] task %s planning error: %v", t.ID, err)
 			case met:
-				log.Printf("[planner] task %s 判定目标达成: %s", t.ID, reason)
+				log.Printf("[planner] task %s judged goals met: %s", t.ID, reason)
 				// After the goal is met but before finalization, first drain the OPEN intents the
 				// planner has already dispatched but not yet executed (bounded by GoalMetDrainCap).
 				// Otherwise, hard-finalizing the instant the last goal is proven would discard the
@@ -466,14 +466,14 @@ func (e *Engine) plannerLoop(ctx context.Context, t *Task) {
 				}
 				// all goals met -> persist the task status as done (the frontend DTO shows this terminal state first).
 				if err := e.m.SetTaskStatus(t.ID, "done"); err != nil {
-					log.Printf("[planner] task %s 标记完成落库失败: %v", t.ID, err)
+					log.Printf("[planner] task %s marking done in DB failed: %v", t.ID, err)
 				}
 				// drain already let the running workers finalize; those still not finished (past the
 				// grace) are hard-cancelled by cancelExec and fall into the "task already completed"
 				// branch below, classified as stopped (not blocked).
 				e.cancelExec(t.ID)
 			default:
-				log.Printf("[planner] task %s 规划完成", t.ID)
+				log.Printf("[planner] task %s planning complete", t.ID)
 			}
 			e.touch(t.ID)
 		}
@@ -629,7 +629,7 @@ func (e *Engine) workerLoop(ctx context.Context, t *Task, name string) {
 			}
 			continue
 		}
-		log.Printf("[worker %s] task %s 领取意图 #%d", name, t.ID, intent.ID)
+		log.Printf("[worker %s] task %s claimed intent #%d", name, t.ID, intent.ID)
 		e.stampFirstRun(t) // first real execution -> stamp first_run_at + compute deadline (only tasks with a timeout)
 		e.touch(t.ID)
 		emit := func(r db.Activity) { e.emitActivity(t, r) }
@@ -658,7 +658,7 @@ func (e *Engine) workerLoop(ctx context.Context, t *Task, name string) {
 			reason == harness.ReasonModelError &&
 			workCtx.Err() == nil && ectx.Err() == nil && !e.IsPaused(t.ID) && !e.isSettling(t.ID); attempt++ {
 			backoff := modelErrorRetryBackoff * time.Duration(attempt) // increasing backoff: 4s,8s,12s,16s
-			log.Printf("[worker %s] task %s 意图 #%d model_error 收场，%v 后重试 (%d/%d)",
+			log.Printf("[worker %s] task %s intent #%d ended with model_error, retrying after %v (%d/%d)",
 				name, t.ID, intent.ID, backoff, attempt, modelErrorRetries)
 			if sleepCtx(workCtx, backoff) {
 				break // cancelled during backoff (terminated/paused) -> hand off to the branch below
@@ -684,7 +684,7 @@ func (e *Engine) workerLoop(ctx context.Context, t *Task, name string) {
 		// usually already written its results back during the settlement phase.
 		if ectx.Err() != nil && e.isSettling(t.ID) {
 			_ = t.Store.SetIntentState(intent.ID, "exhausted")
-			log.Printf("[worker %s] task %s 意图 #%d 因任务超时收尾结束(exhausted)，写回 %s", name, t.ID, intent.ID, wrote)
+			log.Printf("[worker %s] task %s intent #%d ended by task-timeout finalization (exhausted), wrote back %s", name, t.ID, intent.ID, wrote)
 			e.touch(t.ID)
 			continue
 		}
@@ -693,14 +693,14 @@ func (e *Engine) workerLoop(ctx context.Context, t *Task, name string) {
 		// intent state of a completed task.
 		if ectx.Err() != nil && isTerminalStatus(e.m.TaskStatus(t.ID)) {
 			_ = t.Store.SetIntentState(intent.ID, "stopped")
-			log.Printf("[worker %s] task %s 意图 #%d 因任务已完成而取消(stopped)", name, t.ID, intent.ID)
+			log.Printf("[worker %s] task %s intent #%d cancelled because task already completed (stopped)", name, t.ID, intent.ID)
 			e.touch(t.ID)
 			continue
 		}
 		// killed by the planner: mark stopped (don't write back results, don't auto-reclaim).
 		if killed {
 			_ = t.Store.SetIntentState(intent.ID, "stopped")
-			log.Printf("[worker %s] task %s 意图 #%d 被终止(stopped)", name, t.ID, intent.ID)
+			log.Printf("[worker %s] task %s intent #%d terminated (stopped)", name, t.ID, intent.ID)
 			e.touch(t.ID)
 			t.Notify()
 			continue
@@ -717,13 +717,13 @@ func (e *Engine) workerLoop(ctx context.Context, t *Task, name string) {
 			state = "blocked"
 		case reason == harness.ReasonMaxTurns:
 			state = "exhausted"
-			log.Printf("[worker %s] intent %d 撞步数上限(exhausted)，本次写回 %s", name, intent.ID, wrote)
+			log.Printf("[worker %s] intent %d hit step-count limit (exhausted), wrote back %s", name, intent.ID, wrote)
 		case reason == harness.ReasonTimeout:
 			state = "exhausted"
-			log.Printf("[worker %s] intent %d 运行超时(exhausted)，收尾后写回 %s", name, intent.ID, wrote)
+			log.Printf("[worker %s] intent %d run timeout (exhausted), wrote back after finalization %s", name, intent.ID, wrote)
 		}
 		_ = t.Store.SetIntentState(intent.ID, state)
-		log.Printf("[worker %s] task %s 意图 #%d 结束: %s (写回 %s)", name, t.ID, intent.ID, state, wrote)
+		log.Printf("[worker %s] task %s intent #%d ended: %s (wrote back %s)", name, t.ID, intent.ID, state, wrote)
 		e.touch(t.ID)
 		t.NotifyDone(intent.ID) // results changed the graph -> wake the planner (with the just-finished intent id)
 	}

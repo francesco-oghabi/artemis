@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// 多用户 RBAC 数据层（Artemis 平台权限，基于 PostgreSQL + 模块化设计）。
+// Multi-user RBAC data layer (OpenArtemis platform permissions, based on PostgreSQL + a modular design).
 
 const (
 	RBACRoleAdmin    = "admin"
@@ -22,7 +22,7 @@ const (
 	RBACScopeOwn      = "own"
 )
 
-// RBACPermissions —— 平台权限目录（module:action），按 Artemis 实际模块定义。
+// RBACPermissions: the platform permission catalog (module:action), defined by OpenArtemis's actual modules.
 var RBACPermissions = map[string]string{
 	"auth:self":       "Gestire le proprie sessioni e password",
 	"dashboard:read":  "Visualizzare la panoramica della dashboard",
@@ -62,7 +62,7 @@ var RBACPermissions = map[string]string{
 	"rbac:write":      "Gestire utenti / ruoli / permessi",
 }
 
-// RBACUser 平台账号。
+// RBACUser is a platform account.
 type RBACUser struct {
 	ID           string    `json:"id"`
 	Username     string    `json:"username"`
@@ -70,12 +70,12 @@ type RBACUser struct {
 	PasswordHash string    `json:"-"`
 	Enabled      bool      `json:"enabled"`
 	IsBuiltin    bool      `json:"is_builtin"`
-	TokenVersion int       `json:"-"` // 改密/停用自增；签 JWT 时写入，校验时比对，不匹配即失效
+	TokenVersion int       `json:"-"` // bumped on password change/deactivation; written when signing a JWT, compared on verification, invalidated on mismatch
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
-// RBACRole 角色（权限集合 + 资源范围）。
+// RBACRole is a role (a permission set + a resource scope).
 type RBACRole struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
@@ -86,7 +86,7 @@ type RBACRole struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// RBACAccess 某用户解析后的授权画像。
+// RBACAccess is a user's resolved authorization profile.
 type RBACAccess struct {
 	User        RBACUser        `json:"user"`
 	Roles       []RBACRole      `json:"roles"`
@@ -110,7 +110,7 @@ func mergeScope(a, b string) string {
 	return RBACScopeOwn
 }
 
-// RBACNeedsBootstrap 报告是否还没有任何平台用户（首启需迁移/建 admin）。
+// RBACNeedsBootstrap reports whether there are no platform users yet (first startup needs to migrate/create admin).
 func (d *DB) RBACNeedsBootstrap() (bool, error) {
 	var n int
 	if err := d.QueryRow(`SELECT COUNT(*) FROM rbac_users`).Scan(&n); err != nil {
@@ -119,8 +119,8 @@ func (d *DB) RBACNeedsBootstrap() (bool, error) {
 	return n == 0, nil
 }
 
-// BootstrapRBAC 幂等地播种权限目录 + 4 个系统角色 + 授权；
-// 若无用户且传入 adminHash，则用它建内置 admin 账号（从旧单用户密码迁移）。
+// BootstrapRBAC idempotently seeds the permission catalog + 4 system roles + grants;
+// if there are no users and adminHash is passed, it uses it to create the built-in admin account (migrated from the old single-user password).
 func (d *DB) BootstrapRBAC(adminHash string) error {
 	now := time.Now()
 	tx, err := d.Begin()
@@ -129,7 +129,7 @@ func (d *DB) BootstrapRBAC(adminHash string) error {
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// 权限目录（upsert desc；清掉过时 key）
+	// Permission catalog (upsert desc; drop stale keys)
 	for key, desc := range RBACPermissions {
 		if _, err := tx.Exec(`INSERT INTO rbac_permissions(key, description) VALUES ($1,$2)
 			ON CONFLICT (key) DO UPDATE SET description=EXCLUDED.description`, key, desc); err != nil {
@@ -157,7 +157,7 @@ func (d *DB) BootstrapRBAC(adminHash string) error {
 		tx.Exec(`DELETE FROM rbac_permissions WHERE key=$1`, k)                 //nolint:errcheck
 	}
 
-	// 系统角色
+	// System roles
 	sysRoles := []RBACRole{
 		{ID: RBACRoleAdmin, Name: "Amministratore", Description: "Permessi di amministrazione globale", Scope: RBACScopeAll, IsSystem: true},
 		{ID: RBACRoleOperator, Name: "Operatore", Description: "Può eseguire i flussi di lavoro di sicurezza quotidiani, non può gestire account e configurazione principale", Scope: RBACScopeAssigned, IsSystem: true},
@@ -173,13 +173,13 @@ func (d *DB) BootstrapRBAC(adminHash string) error {
 		}
 	}
 
-	// 系统角色授权：确定性重建
+	// System role grants: deterministic rebuild
 	if _, err := tx.Exec(`DELETE FROM rbac_role_permissions WHERE role_id IN ($1,$2,$3,$4)`,
 		RBACRoleAdmin, RBACRoleOperator, RBACRoleAuditor, RBACRoleViewer); err != nil {
 		return err
 	}
 	for key := range RBACPermissions {
-		// admin：全部
+		// admin: everything
 		if _, err := tx.Exec(`INSERT INTO rbac_role_permissions(role_id,permission_key) VALUES ($1,$2) ON CONFLICT DO NOTHING`, RBACRoleAdmin, key); err != nil {
 			return err
 		}
@@ -190,22 +190,22 @@ func (d *DB) BootstrapRBAC(adminHash string) error {
 				tx.Exec(`INSERT INTO rbac_role_permissions(role_id,permission_key) VALUES ($1,$2) ON CONFLICT DO NOTHING`, rid, key) //nolint:errcheck
 			}
 		case isRead:
-			// 所有 :read 都给 operator/auditor/viewer —— 只读/操作员角色可【查看】全部页面
-			// （含报告管理 / 日志·审计 / 系统配置 / 用户管理 / LLM），只是不能操作。
-			// （此 case 在下面 rbac/config/llm 之前，故那些模块的 read 也走这里。）
+			// All :read go to operator/auditor/viewer: read-only/operator roles can [view] every page
+			// (including report management / logs & audit / system config / user management / LLM), they just cannot act on them.
+			// (this case comes before rbac/config/llm below, so those modules' read also go through here.)
 			for _, rid := range []string{RBACRoleOperator, RBACRoleAuditor, RBACRoleViewer} {
 				tx.Exec(`INSERT INTO rbac_role_permissions(role_id,permission_key) VALUES ($1,$2) ON CONFLICT DO NOTHING`, rid, key) //nolint:errcheck
 			}
 		case strings.HasPrefix(key, "rbac:"), strings.HasPrefix(key, "config:"), strings.HasPrefix(key, "llm:"):
-			// 平台管理类（rbac/config/llm）的写/删：仅 admin（上面已授），operator 也不得
-			// 管理账号 / 核心配置 / LLM。此处 read 已被上面的 isRead 命中，这里只剩写/删 → 不授任何非 admin 角色。
+			// Platform-management (rbac/config/llm) write/delete: admin only (granted above); operator also may not
+			// manage accounts / core config / LLM. read here was already matched by isRead above, so only write/delete remain -> grant to no non-admin role.
 		default:
-			// 功能类写/删：给 operator（+ admin）
+			// Feature write/delete: grant to operator (+ admin)
 			tx.Exec(`INSERT INTO rbac_role_permissions(role_id,permission_key) VALUES ($1,$2) ON CONFLICT DO NOTHING`, RBACRoleOperator, key) //nolint:errcheck
 		}
 	}
 
-	// 首启：无用户则建内置 admin（迁移旧密码）
+	// First startup: if there are no users, create the built-in admin (migrate the old password)
 	var userCount int
 	if err := tx.QueryRow(`SELECT COUNT(*) FROM rbac_users`).Scan(&userCount); err != nil {
 		return err
@@ -249,7 +249,7 @@ func (d *DB) GetRBACUserByID(id string) (*RBACUser, error) {
 	return scanRBACUser(d.QueryRow(`SELECT `+rbacUserCols+` FROM rbac_users WHERE id=$1`, id))
 }
 
-// ResolveRBACAccess 解析某用户的角色 + 权限 + 综合 scope。
+// ResolveRBACAccess resolves a user's roles + permissions + combined scope.
 func (d *DB) ResolveRBACAccess(userID string) (*RBACAccess, error) {
 	u, err := d.GetRBACUserByID(userID)
 	if err != nil {
@@ -361,7 +361,7 @@ func (d *DB) UpdateRBACUser(userID, displayName string, enabled *bool, roleIDs *
 	}
 	defer func() { _ = tx.Rollback() }()
 	if enabled != nil {
-		// 停用账号时 token_version+1，立即作废其已签发 token（不等它自然过期）。
+		// Bump token_version+1 when deactivating an account to immediately invalidate its issued tokens (without waiting for natural expiry).
 		bump := ""
 		if !*enabled {
 			bump = ",token_version=token_version+1"
@@ -393,7 +393,7 @@ func (d *DB) UpdateRBACUserPassword(userID, passwordHash string) error {
 	if strings.TrimSpace(userID) == "" || passwordHash == "" {
 		return errors.New("parametri mancanti")
 	}
-	// token_version+1：改密即作废该用户此前签发的所有 JWT（旧 token 下次请求被拒）。
+	// token_version+1: changing the password invalidates all JWTs previously issued to this user (old tokens are rejected on the next request).
 	_, err := d.Exec(`UPDATE rbac_users SET password_hash=$1,token_version=token_version+1,updated_at=now() WHERE id=$2`, passwordHash, userID)
 	return err
 }
@@ -407,7 +407,7 @@ func (d *DB) DeleteRBACUser(userID string) error {
 	return err
 }
 
-// ----- 角色 -----
+// ----- Roles -----
 
 func (d *DB) ListRBACRoles() ([]RBACRole, error) {
 	rows, err := d.Query(`SELECT id,name,description,scope,is_system,created_at,updated_at FROM rbac_roles ORDER BY is_system DESC, name`)
@@ -453,7 +453,7 @@ func (d *DB) ListRBACRolePermissionKeys(roleID string) ([]string, error) {
 	return out, rows.Err()
 }
 
-// UpsertRBACRole 新建/更新自定义角色（系统角色不可改）。
+// UpsertRBACRole creates/updates a custom role (system roles cannot be changed).
 func (d *DB) UpsertRBACRole(id, name, description, scope string, permKeys []string) (*RBACRole, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {

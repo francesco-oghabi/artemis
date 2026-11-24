@@ -28,10 +28,8 @@ import { api } from "@/lib/api";
 import type { Finding, Personnel, ReportRecord, ReportSettings, ReportTemplate, Task } from "@/lib/types";
 import { taskLabel, taskMap } from "@/lib/task-label";
 
-function localeName(t: TFunction, locale: string): string {
-  if (locale === "zh-TW") return t("reports.langZhTW");
-  if (locale === "en-US") return t("reports.langEnUS");
-  return t("reports.langZhCN");
+function localeName(t: TFunction, _locale: string): string {
+  return t("reports.langEnUS");
 }
 
 function emptyTemplate(): ReportTemplate {
@@ -43,7 +41,7 @@ function emptyTemplate(): ReportTemplate {
     logo_path: "",
     personnel: [],
     cvss_version: "3.1",
-    locale: "zh-CN",
+    locale: "en-US",
   };
 }
 
@@ -58,7 +56,7 @@ function fmtSize(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 function fmtTime(ts: string) {
-  return new Date(ts).toLocaleString("zh-CN");
+  return new Date(ts).toLocaleString("en-US");
 }
 
 export default function ReportsPage() {
@@ -81,7 +79,7 @@ export default function ReportsPage() {
   const [selTask, setSelTask] = React.useState("");
   const [title, setTitle] = React.useState("");
   const [client, setClient] = React.useState("");
-  const [locale, setLocale] = React.useState("zh-CN");
+  const [locale, setLocale] = React.useState("en-US");
   const [format, setFormat] = React.useState("docx"); // docx | md
   const [taskFindings, setTaskFindings] = React.useState<Finding[]>([]);
   const [selFindings, setSelFindings] = React.useState<Set<string>>(new Set());
@@ -187,7 +185,7 @@ export default function ReportsPage() {
     setSelTask("");
     setTitle("");
     setClient("");
-    setLocale("zh-CN");
+    setLocale("en-US");
     setSelTemplate("");
     setTaskFindings([]);
     setSelFindings(new Set());
@@ -595,8 +593,6 @@ export default function ReportsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="zh-CN">{t("reports.langZhCN")}</SelectItem>
-                    <SelectItem value="zh-TW">{t("reports.langZhTW")}</SelectItem>
                     <SelectItem value="en-US">{t("reports.langEnUS")}</SelectItem>
                   </SelectContent>
                 </Select>
@@ -739,8 +735,6 @@ export default function ReportsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="zh-CN">{t("reports.langZhCN")}</SelectItem>
-                    <SelectItem value="zh-TW">{t("reports.langZhTW")}</SelectItem>
                     <SelectItem value="en-US">{t("reports.langEnUS")}</SelectItem>
                   </SelectContent>
                 </Select>

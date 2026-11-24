@@ -117,12 +117,12 @@ func (s *Server) seedDemoReportTemplate() {
 			{"name": "Luigi Bianchi", "role": "Valutazione red team", "contact": ""},
 		})
 		_, _ = s.m.pg.AddReportTemplate(&db.ReportTemplate{
-			Name:          "Consegna standard in cinese (esempio)",
+			Name:          "Consegna standard (esempio)",
 			CompanyName:   "Team di servizi di sicurezza di esempio",
 			CompanyNameEn: "Example Security Team",
 			Personnel:     pj,
 			CVSSVersion:   "3.1",
-			Locale:        "zh-CN",
+			Locale:        "en-US",
 		})
 	}
 	_ = os.MkdirAll(s.dataDir, 0o755)

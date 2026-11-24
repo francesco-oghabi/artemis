@@ -22,28 +22,28 @@ type ExtractedFinding struct {
 	Evidence  string `json:"evidence"`
 }
 
-const sysExtract = "你是资深渗透测试专家。从渗透测试执行/汇总记录中提取【已确认的漏洞】。严格只输出 JSON，不要 markdown 代码块。证据必须保留记录里的真实原文，不得编造。"
+const sysExtract = "You are a senior penetration testing expert. Extract the CONFIRMED vulnerabilities from the penetration test execution/summary records. Output ONLY strict JSON, with no markdown code fences. Evidence must preserve the real, original text from the records and must not be fabricated."
 
-const userExtract = `从以下渗透测试执行与汇总记录中，提取所有【已确认的漏洞】与【已证实的暴露/信息泄露风险】（不含未验证的猜测与否定结论）。
+const userExtract = `From the penetration test execution and summary records below, extract every CONFIRMED vulnerability and every PROVEN exposure / information-disclosure risk (excluding unverified guesses and negative conclusions).
 
-已记录的漏洞（这些不要重复输出）：
+Already-recorded vulnerabilities (do NOT output these again):
 %s
-执行/汇总记录：
+Execution / summary records:
 %s
 
-要求：
-- 每条一个确认漏洞：vulnclass(漏洞类型/名称，如"存储型 XSS"、"硬编码凭据"、"未授权访问"), severity(critical|high|medium|low；critical=可直接导致系统/数据完全失陷), summary(一句话摘要，含受影响对象), target(受影响主机或 URL), evidence(关键 PoC/请求/命令/响应原文，保留真实内容)。
-- 只提取记录里**明确验证过**的漏洞/暴露；上面"已记录"列表里的语义相同项不要重复。
-- **暴露/信息泄露类也要提取**：记录里实际访问到、有响应证据的未授权可达敏感/管理/调试接口、Swagger/API 文档、配置或备份/源码公开、敏感数据泄露等，按敏感度定 severity（一般信息泄露=low、未授权可达敏感/管理接口=medium、可接管或拿到凭据/密钥=high）。仍排除纯臆测（版本/CVE 匹配、"看起来可注入"）；仅"存在某接口"而无未授权暴露的不算。
-- 若没有新漏洞/暴露，findings 输出空数组。
+Requirements:
+- One confirmed vulnerability per entry: vulnclass (vulnerability type/name, e.g. "Stored XSS", "Hardcoded Credentials", "Unauthorized Access"), severity (critical|high|medium|low; critical = can directly lead to full compromise of the system/data), summary (one-sentence summary including the affected object), target (affected host or URL), evidence (key PoC/request/command/response verbatim, preserving the real content).
+- Only extract vulnerabilities/exposures that are **explicitly verified** in the records; do not repeat items semantically identical to those in the "already-recorded" list above.
+- **Exposure / information-disclosure issues must also be extracted**: unauthorized-reachable sensitive/admin/debug endpoints, Swagger/API docs, exposed configuration or backup/source code, sensitive-data leaks, etc. that were actually accessed with response evidence in the records; set severity by sensitivity (general information disclosure = low, unauthorized-reachable sensitive/admin endpoint = medium, account takeover or obtaining credentials/keys = high). Still exclude pure speculation (version/CVE matching, "looks injectable"); the mere existence of an endpoint with no unauthorized exposure does not count.
+- If there are no new vulnerabilities/exposures, output an empty findings array.
 
-只输出 JSON：{"findings":[{"vulnclass":"...","severity":"high","summary":"...","target":"...","evidence":"..."}]}`
+Output ONLY JSON: {"findings":[{"vulnclass":"...","severity":"high","summary":"...","target":"...","evidence":"..."}]}`
 
 // ExtractFindings asks the active LLM to extract confirmed vulns from the
 // transcript, excluding ones already recorded (passed as short labels).
 func ExtractFindings(ctx context.Context, pg *db.DB, transcript string, existing []string) ([]ExtractedFinding, error) {
 	if strings.TrimSpace(transcript) == "" {
-		return nil, fmt.Errorf("无可分析的会话记录")
+		return nil, fmt.Errorf("no session records available to analyze")
 	}
 	var ex strings.Builder
 	for _, e := range existing {
@@ -52,7 +52,7 @@ func ExtractFindings(ctx context.Context, pg *db.DB, transcript string, existing
 		ex.WriteString("\n")
 	}
 	if ex.Len() == 0 {
-		ex.WriteString("（无）\n")
+		ex.WriteString("(none)\n")
 	}
 	raw, err := complete(ctx, pg, sysExtract, fmt.Sprintf(userExtract, ex.String(), transcript), 4000)
 	if err != nil {
@@ -62,7 +62,7 @@ func ExtractFindings(ctx context.Context, pg *db.DB, transcript string, existing
 		Findings []ExtractedFinding `json:"findings"`
 	}
 	if err := json.Unmarshal([]byte(raw), &out); err != nil {
-		return nil, fmt.Errorf("AI 输出解析失败")
+		return nil, fmt.Errorf("failed to parse AI output")
 	}
 	return out.Findings, nil
 }

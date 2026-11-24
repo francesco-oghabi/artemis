@@ -36,8 +36,8 @@ const banner = `
 // printBanner writes the startup banner + version/runtime info to stdout.
 func printBanner(addr string) {
 	fmt.Print(banner)
-	fmt.Println("  AI 自主渗透测试系统")
-	fmt.Printf("  版本 %s  ·  %s/%s  ·  %s  ·  监听 %s\n\n",
+	fmt.Println("  AI autonomous penetration testing system")
+	fmt.Printf("  Version %s  ·  %s/%s  ·  %s  ·  listening %s\n\n",
 		version, runtime.GOOS, runtime.GOARCH, runtime.Version(), addr)
 }
 
@@ -76,9 +76,9 @@ func run() int {
 		cfgPath = abs
 	}
 	if _, e := os.Stat(cfgPath); e == nil {
-		log.Printf("[config] 配置文件: %s", cfgPath)
+		log.Printf("[config] config file: %s", cfgPath)
 	} else {
-		log.Printf("[config] 配置文件: %s (不存在 — 将仅尝试环境变量 ARTEMIS_PG_DSN)", cfgPath)
+		log.Printf("[config] config file: %s (does not exist: will only try env var ARTEMIS_PG_DSN)", cfgPath)
 	}
 
 	// Data-directory persistence guard: when dataDir lands in /tmp or a system temp directory, it is
@@ -87,7 +87,7 @@ func run() int {
 	// putting working data in a temp directory.
 	if abs, _ := filepath.Abs(*dataDir); abs != "" {
 		if abs == "/tmp" || strings.HasPrefix(abs, "/tmp/") || strings.HasPrefix(abs, os.TempDir()) {
-			log.Printf("⚠️  [data] dataDir=%s 位于临时目录，重启即清空(流量/报告/转录会全部丢失)！请用 -data 指向持久目录，如 ~/artemis-data 或 /opt/artemis/data。", abs)
+			log.Printf("⚠️  [data] dataDir=%s is in a temp directory, wiped on restart (traffic/reports/transcripts will all be lost)! Point -data at a persistent directory, e.g. ~/artemis-data or /opt/artemis/data.", abs)
 		}
 	}
 
@@ -107,7 +107,7 @@ func run() int {
 	if abs, err := filepath.Abs(skillDir); err == nil {
 		skillDir = abs
 	}
-	log.Printf("[config] skill 目录: %s", skillDir)
+	log.Printf("[config] skill directory: %s", skillDir)
 	srv := server.New(ctx, mgr, skillDir, *dataDir)
 	httpSrv := &http.Server{
 		Addr:              *addr,

@@ -252,7 +252,7 @@ func (s *Server) findingSetupTraffic(taskID int64) string {
 			if e != nil {
 				continue
 			}
-			fmt.Fprintf(&b, "\n### %s %s (HTTP %d)\n[请求]\n%s\n[响应]\n%s\n", ex.Method, ex.URL, ex.Status, clipUTF8(req, 1400), clipUTF8(resp, 900))
+			fmt.Fprintf(&b, "\n### %s %s (HTTP %d)\n[request]\n%s\n[response]\n%s\n", ex.Method, ex.URL, ex.Status, clipUTF8(req, 1400), clipUTF8(resp, 900))
 		}
 	}
 	return b.String()
@@ -282,7 +282,7 @@ func (s *Server) findingEnrich(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	company := strings.TrimSpace(r.URL.Query().Get("company"))
-	locale := strings.TrimSpace(r.URL.Query().Get("locale")) // zh-CN (default) | zh-TW | en-US
+	locale := strings.TrimSpace(r.URL.Query().Get("locale")) // en-US (default) | other locales
 
 	s.enrichMu.Lock()
 	if j := s.enrichJobs[id]; j != nil && j.Status == "analyzing" {

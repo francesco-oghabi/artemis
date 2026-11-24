@@ -79,13 +79,13 @@ func (e *Engine) stampFirstRun(t *Task) {
 	}
 	dl, err := e.m.StampTaskFirstRun(t.ID)
 	if err != nil {
-		log.Printf("[deadline] task %s 盖章 first_run 失败: %v", t.ID, err)
+		log.Printf("[deadline] task %s stamp first_run failed: %v", t.ID, err)
 		e.stamped.Delete(t.ID) // allow a retry next time
 		return
 	}
 	if dl > 0 {
 		e.deadline.Store(t.ID, dl)
-		log.Printf("[deadline] task %s 首次运行,截止于 %s", t.ID, time.Unix(dl, 0).Format("2006-01-02 15:04:05"))
+		log.Printf("[deadline] task %s first run, deadline at %s", t.ID, time.Unix(dl, 0).Format("2006-01-02 15:04:05"))
 	}
 }
 
@@ -159,7 +159,7 @@ func (e *Engine) drainInflight(ctx context.Context, t *Task) (engineStopping boo
 	hardStop := time.Now().Add(settleDrainGrace)
 	for e.inflightCount(t.ID) > 0 {
 		if time.Now().After(hardStop) {
-			log.Printf("[drain] task %s drain 超时(%s),硬取消在跑 run", t.ID, settleDrainGrace)
+			log.Printf("[drain] task %s drain timeout (%s), hard-cancelling running run", t.ID, settleDrainGrace)
 			e.cancelExec(t.ID)
 			_ = sleepCtx(ctx, 3*time.Second) // give the worker branches a moment to persist/classify
 			return false
@@ -201,7 +201,7 @@ func (e *Engine) drainFrontier(ctx context.Context, t *Task, cap int) {
 	if floor < 0 {
 		floor = 0
 	}
-	log.Printf("[drain-frontier] task %s 目标达成，收尾前排空前沿: open=%d, 上限=%d → 排到剩 %d", t.ID, open0, cap, floor)
+	log.Printf("[drain-frontier] task %s goals met, draining frontier before finalization: open=%d, cap=%d → draining down to %d", t.ID, open0, cap, floor)
 	lastOpen := open0
 	lastProgress := time.Now()
 	for {
@@ -209,7 +209,7 @@ func (e *Engine) drainFrontier(ctx context.Context, t *Task, cap int) {
 			return // engine-wide shutdown
 		}
 		if e.IsPaused(t.ID) {
-			log.Printf("[drain-frontier] task %s 排空期间被暂停,停止等待", t.ID)
+			log.Printf("[drain-frontier] task %s paused during drain, stop waiting", t.ID)
 			return
 		}
 		open, err := t.Store.OpenIntentCount()
@@ -217,7 +217,7 @@ func (e *Engine) drainFrontier(ctx context.Context, t *Task, cap int) {
 			return
 		}
 		if open <= floor && e.inflightCount(t.ID) == 0 {
-			log.Printf("[drain-frontier] task %s 前沿已排空(open=%d),收尾", t.ID, open)
+			log.Printf("[drain-frontier] task %s frontier drained (open=%d), finalizing", t.ID, open)
 			return
 		}
 		if open < lastOpen {
@@ -225,7 +225,7 @@ func (e *Engine) drainFrontier(ctx context.Context, t *Task, cap int) {
 			lastProgress = time.Now()
 		}
 		if time.Since(lastProgress) > drainFrontierStall {
-			log.Printf("[drain-frontier] task %s 排空停滞 %s 无进展(open=%d),强制收尾", t.ID, drainFrontierStall, open)
+			log.Printf("[drain-frontier] task %s drain stalled %s with no progress (open=%d), forcing finalization", t.ID, drainFrontierStall, open)
 			return
 		}
 	}
@@ -236,7 +236,7 @@ func (e *Engine) settleTask(ctx context.Context, t *Task) {
 	if !e.markSettling(t.ID) {
 		return
 	}
-	log.Printf("[deadline] task %s 到达超时上限,进入收尾时序", t.ID)
+	log.Printf("[deadline] task %s reached timeout limit, entering finalization sequence", t.ID)
 
 	// (4) drain running workers/planner (graceful, see drainInflight); past the grace -> hard cancel.
 	if e.drainInflight(ctx, t) {
@@ -255,11 +255,11 @@ func (e *Engine) settleTask(ctx context.Context, t *Task) {
 	won, err := e.m.SetTaskStatusGuarded(t.ID, status)
 	switch {
 	case err != nil:
-		log.Printf("[deadline] task %s 落终态失败: %v", t.ID, err)
+		log.Printf("[deadline] task %s setting terminal state failed: %v", t.ID, err)
 	case won:
-		log.Printf("[deadline] task %s 收尾完成,终态=%s", t.ID, status)
+		log.Printf("[deadline] task %s finalization complete, terminal state=%s", t.ID, status)
 	default:
-		log.Printf("[deadline] task %s 收尾时已是终态,保留原状态", t.ID)
+		log.Printf("[deadline] task %s already terminal at finalization, keeping original state", t.ID)
 	}
 }
 
@@ -287,9 +287,9 @@ func (e *Engine) runFinalPlannerRound(ctx context.Context, t *Task) (met bool) {
 	met, reason, err := planner.Plan(fctx, tTaskID, e.m.assets, t.Store, t.Goal, t.drainDone(), emit)
 	e.decInflight(t.ID)
 	if err != nil {
-		log.Printf("[deadline] task %s 终局规划出错: %v", t.ID, err)
+		log.Printf("[deadline] task %s final planning error: %v", t.ID, err)
 	} else if met {
-		log.Printf("[deadline] task %s 终局判定目标达成: %s", t.ID, reason)
+		log.Printf("[deadline] task %s final judgment: goals met: %s", t.ID, reason)
 	}
 	return met
 }
