@@ -147,7 +147,7 @@ but no oracle, so it varies run to run), 🔴 attempted but not broken, ⬜ not 
 |---|---|:---:|:---:|---|
 | V01 | SQLi login bypass | ✓ | ✅ | `injection_verify` (auth-bypass tautology) |
 | V02 | SQLi UNION dump | ✓ | ✅ | `injection_verify` (real UNION dump: 25 `email:hash` rows from Users) |
-| V03 | SQLi, targeted login as chosen user | ✓ | ⬜ | not distinguished from V01 |
+| V03 | SQLi, targeted login as chosen user | ✓ | 🟡 | asserted (login-as-user), not distinguished from V01 by an oracle |
 | V04 | JWT `alg:none` forgery | ✓ | ✅ | `jwt_verify` (`alg:none` on tight gates + corrupted-signature baseline, plus RS256→HS256 confusion with the exposed pubkey) |
 | V05 | Mass assignment of role | ✓ | ✅ | `massassign_verify` (differential registration, `role=admin` accepted) |
 | V06 | IDOR basket | ✓ | ✅ | `idor_verify` (two-account cross-read, owner-id differential) |
