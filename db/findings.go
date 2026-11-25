@@ -55,6 +55,56 @@ func (d *DB) SetFindingReproduction(nodeID int64, repro json.RawMessage) error {
 	return err
 }
 
+// SetFindingVerdict records the independent verifier's adjudication on a finding
+// (see agent.VerifyFinding). verdict is one of the agent.Verdict* values.
+func (d *DB) SetFindingVerdict(findingID int64, verdict, reason string) error {
+	_, err := d.Exec(
+		`UPDATE findings SET verdict=$1, verdict_reason=$2, verified_at=now() WHERE id=$3`,
+		verdict, reason, findingID)
+	return err
+}
+
+// VerifyRow is a minimal finding row handed to the independent verifier.
+type VerifyRow struct {
+	ID           int64
+	VulnClass    string
+	Severity     string
+	Summary      string
+	Evidence     string
+	Reproduction json.RawMessage
+	Verdict      string
+}
+
+// FindingsForVerify lists a task's findings for adjudication, oldest first. When
+// onlyUnverified is true it returns only rows still at verdict='unverified'.
+func (d *DB) FindingsForVerify(taskID int64, onlyUnverified bool) ([]VerifyRow, error) {
+	q := `SELECT id, vulnclass, severity, summary, evidence,
+	             COALESCE(reproduction::text, ''), verdict
+	      FROM findings WHERE task_id = $1`
+	if onlyUnverified {
+		q += ` AND verdict = 'unverified'`
+	}
+	q += ` ORDER BY id`
+	rows, err := d.Query(q, taskID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []VerifyRow
+	for rows.Next() {
+		var r VerifyRow
+		var repro string
+		if err := rows.Scan(&r.ID, &r.VulnClass, &r.Severity, &r.Summary, &r.Evidence, &repro, &r.Verdict); err != nil {
+			return nil, err
+		}
+		if repro != "" {
+			r.Reproduction = json.RawMessage(repro)
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 // GetFindingByNodeID returns the standalone finding row for an exploration node
 // id (the canonical finding key), or (nil, nil) if none.
 func (d *DB) GetFindingByNodeID(nodeID int64) (*DBFinding, error) {

@@ -51,3 +51,6 @@ Thumbs.db
 
 # Private planning (never publish)
 docs/ROADMAP.private.md
+
+# build artifacts
+/bin/
