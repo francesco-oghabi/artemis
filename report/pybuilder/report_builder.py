@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Artemis penetration test report builder (JSON-driven, self-contained).
+OpenArtemis penetration test report builder (JSON-driven, self-contained).
 
 Built on python-docx's delivery-grade layout capabilities, generalized into a
 command-line tool:

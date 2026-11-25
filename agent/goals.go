@@ -57,6 +57,7 @@ func DecomposeGoals(ctx context.Context, c Config, goalText, desc string, emit f
 		Goals []GoalSpec `json:"goals"`
 	}
 	captured := false
+	seen := map[string]bool{}
 	submitTool := actool.Build(actool.Spec{
 		Name:        "set_goals",
 		Description: "Submit the list of decomposed goals.",
@@ -70,7 +71,25 @@ func DecomposeGoals(ctx context.Context, c Config, goalText, desc string, emit f
 		}, "required": []string{"goals"}},
 		Permissions: func(context.Context, json.RawMessage, acperm.Context) acperm.Decision { return acperm.Allowed() },
 		Run: func(_ context.Context, in json.RawMessage, _ *actool.ToolContext) (actool.Result, error) {
-			_ = json.Unmarshal(in, &out)
+			// Accumulate and dedup across calls instead of overwriting. The model may
+			// call set_goals more than once within the decomposition turns, sometimes
+			// splitting goals across calls or re-submitting a reduced list. Overwriting
+			// let the LAST call win, which silently dropped breadth (e.g. a run that
+			// first proposed auth-bypass + JWT, then only UNION + exposure, ended with
+			// just 2 goals). Merging by normalized text keeps the full union.
+			var call struct {
+				Goals []GoalSpec `json:"goals"`
+			}
+			if json.Unmarshal(in, &call) == nil {
+				for _, g := range call.Goals {
+					key := strings.ToLower(strings.TrimSpace(g.Text))
+					if key == "" || seen[key] {
+						continue
+					}
+					seen[key] = true
+					out.Goals = append(out.Goals, g)
+				}
+			}
 			captured = true
 			return actool.Text("ok"), nil
 		},
@@ -91,6 +110,14 @@ func DecomposeGoals(ctx context.Context, c Config, goalText, desc string, emit f
 			emit(r)
 		}
 	}
+	// Greedy (temperature 0) for decomposition. With sampling (the profile's
+	// temperature), the breadth of the decomposition varies wildly run to run,
+	// because seed-based reproducibility is NOT honored on this serving path
+	// (verified empirically: identical requests at temperature 0.3 + seed 42
+	// produce different outputs; greedy produces identical, comprehensive output).
+	// Decomposition is a one-shot structured task where determinism is what we
+	// want, so it is decoupled from the exploratory temperature of the main loop.
+	greedyTemp := 0.0
 	captureRun(ctx, agentcore.Options{
 		Provider:               prov,
 		SystemPrompt:           []string{sys},
@@ -98,6 +125,7 @@ func DecomposeGoals(ctx context.Context, c Config, goalText, desc string, emit f
 		PermissionMode:         acperm.ModeBypass,
 		DisableBackgroundTasks: true,
 		MaxTurns:               4,
+		Temperature:            &greedyTemp,
 	}, userMsg, captureEmit)
 	if !captured {
 		return nil

@@ -397,14 +397,14 @@ func (s *Server) seedOrchestrationTools() {
 	s.reseedAgentPrompt("mainagent", "prompt_exposure_findings_mainagent_v1", "record exposure/info-leak findings + persist confirmed exposures when reviewing")
 	s.reseedAgentPrompt("worker", "prompt_exposure_findings_worker_v1", "also record exposure/info-leak cases as findings")
 	s.reseedAgentPrompt("pentest", "prompt_exposure_findings_pentest_v1", "also record exposure/info-leak cases as findings")
-	// adapted from the autonomy prompt improvements in Artemis 0.3.4-0.3.6 (fitted to our wording without a coverage subsystem):
+	// adapted from the autonomy prompt improvements in AntiFox 0.3.4-0.3.6 (fitted to our wording without a coverage subsystem):
 	s.reseedAgentPrompt("planner", "prompt_zerointent_acceptance_v1", "rewrite of the zero-intent criteria (two kinds of valid justification) + quantified acceptance check (no early wrap-up before targets are met)")
 	s.reseedAgentPrompt("worker", "prompt_negfact_threshold_v1", "evidence threshold for negative conclusions: mark everything inferred until means are exhausted, do not weld a direction shut with a hasty observed")
 	// record reproduction steps in place: when confirming a vulnerability, fill the structured reproduction in report_finding (entry/prerequisites/ordered real steps/source).
 	s.reseedAgentPrompt("worker", "prompt_reproduction_recipe_v1", "report_finding fills the structured reproduction process (recorded in place, requests verbatim and real)")
 	s.reseedAgentPrompt("pentest", "prompt_reproduction_recipe_pentest_v1", "report_finding fills the structured reproduction process")
 	s.reseedAgentPrompt("mainagent", "prompt_reproduction_recipe_mainagent_v1", "report_finding fills the structured reproduction process")
-	s.bumpWorkerRunSecondsTo1200() // worker per-round wall clock 600->1200s (only the default when not customized; from Artemis 0.3.3)
+	s.bumpWorkerRunSecondsTo1200() // worker per-round wall clock 600->1200s (only the default when not customized; from AntiFox 0.3.3)
 	// Note: pentest's default tool bindings need no migration, since BuiltinToolSeeds, on a fresh init, seeds
 	// list_assets/insert_assets/report_finding/list_findings/list_companies together with
 	// pentest (the project has no old DB yet, so no migration is done).

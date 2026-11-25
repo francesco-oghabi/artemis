@@ -174,7 +174,7 @@ func (e *Engine) drainInflight(ctx context.Context, t *Task) (engineStopping boo
 // drainFrontier lets the worker pool execute the OPEN intents the planner already
 // dispatched, AFTER all goals are met but BEFORE the task is closed, so a breadth-heavy
 // frontier is not orphaned the instant the last goal is proven (the task-58 waste: 38
-// already-dispatched IDOR/NoSQL/JWT/exposure intents thrown away). See docs/ROADMAP.md 4d.
+// already-dispatched IDOR/NoSQL/JWT/exposure intents thrown away).
 //
 // It is called from the planner loop's goals-met branch, so while it blocks, the planner
 // is stopped and adds NO new intents: the OPEN frontier is frozen and can only shrink as

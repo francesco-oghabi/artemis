@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Artemis installer: 1) all-in-Docker  2) build and run locally
+# OpenArtemis installer: 1) all-in-Docker  2) build and run locally
 set -euo pipefail
 cd "$(cd "$(dirname "$0")" && pwd)"
 

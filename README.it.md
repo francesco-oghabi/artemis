@@ -10,7 +10,7 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white)](go.mod)
-[![Status](https://img.shields.io/badge/status-ricerca%20%2F%20WIP-orange.svg)](docs/ROADMAP.md)
+![Status](https://img.shields.io/badge/status-ricerca%20%2F%20WIP-orange.svg)
 
 </div>
 
@@ -239,7 +239,7 @@ Ogni voce è una garanzia strutturale nel codice oppure una leva misurata:
 
 Diversi di questi sottosistemi non esistono affatto negli upstream (la knowledge base, il
 dedup dei fatti, il wiring di terminazione); gli altri sono nuovi verificatori e controlli
-sopra la base. Vedi [docs/BENCHMARK.md](docs/BENCHMARK.md) e [docs/ROADMAP.md](docs/ROADMAP.md).
+sopra la base. Vedi [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
 ## Avvio rapido
 
@@ -289,7 +289,6 @@ container (`http://juice-shop:3000`). Vedi [docs/BENCHMARK.md](docs/BENCHMARK.md
   dei livelli d'intervento.
 - [docs/BENCHMARK.md](docs/BENCHMARK.md): metodologia, riferimento di frontiera, leve e
   risultati onesti.
-- [docs/ROADMAP.md](docs/ROADMAP.md): dove sta andando.
 
 ## Licenza e uso responsabile
 

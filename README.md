@@ -10,7 +10,7 @@ English | [Italiano](README.it.md)
 
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white)](go.mod)
-[![Status](https://img.shields.io/badge/status-research%20%2F%20WIP-orange.svg)](docs/ROADMAP.md)
+![Status](https://img.shields.io/badge/status-research%20%2F%20WIP-orange.svg)
 
 </div>
 
@@ -147,7 +147,7 @@ but no oracle, so it varies run to run), 🔴 attempted but not broken, ⬜ not 
 |---|---|:---:|:---:|---|
 | V01 | SQLi login bypass | ✓ | ✅ | `injection_verify` (auth-bypass tautology) |
 | V02 | SQLi UNION dump | ✓ | ✅ | `injection_verify` (real UNION dump: 25 `email:hash` rows from Users) |
-| V03 | SQLi, targeted login as chosen user | ✓ | ⬜ | not distinguished from V01 |
+| V03 | SQLi, targeted login as chosen user | ✓ | 🟡 | asserted (login-as-user), not distinguished from V01 by an oracle |
 | V04 | JWT `alg:none` forgery | ✓ | ✅ | `jwt_verify` (`alg:none` on tight gates + corrupted-signature baseline, plus RS256→HS256 confusion with the exposed pubkey) |
 | V05 | Mass assignment of role | ✓ | ✅ | `massassign_verify` (differential registration, `role=admin` accepted) |
 | V06 | IDOR basket | ✓ | ✅ | `idor_verify` (two-account cross-read, owner-id differential) |
@@ -232,7 +232,7 @@ item is either a structural guarantee in code or a measured lever:
 
 Several of these subsystems do not exist in the upstreams at all (the knowledge base,
 fact dedup, the termination wiring); the rest are new verifiers and controls layered on
-top. See [docs/BENCHMARK.md](docs/BENCHMARK.md) and [docs/ROADMAP.md](docs/ROADMAP.md).
+top. See [docs/BENCHMARK.md](docs/BENCHMARK.md).
 
 ## Quick start
 
@@ -282,7 +282,6 @@ container name (`http://juice-shop:3000`). See [docs/BENCHMARK.md](docs/BENCHMAR
   intervention-levels taxonomy.
 - [docs/BENCHMARK.md](docs/BENCHMARK.md): methodology, the frontier reference, the levers,
   and honest results.
-- [docs/ROADMAP.md](docs/ROADMAP.md): where this is going.
 
 ## License and responsible use
 

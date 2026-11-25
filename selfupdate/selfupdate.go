@@ -1,4 +1,4 @@
-// Package selfupdate gives Artemis a one-click, in-place upgrade: it pulls the
+// Package selfupdate gives OpenArtemis a one-click, in-place upgrade: it pulls the
 // latest release binary from GitHub, verifies it (SHA256 + smoke test), stages it,
 // and atomically swaps it in on the next start — with automatic rollback if the new
 // binary won't boot. User data is never touched (it lives in PostgreSQL + the data

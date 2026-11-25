@@ -17,7 +17,7 @@ import (
 //
 // ScopeSentry is an ASM asset-mapping platform; through its MCP interface it pulls assets such as
 // subdomains, web apps and services along two dimensions, [project] / [task], and maps them into
-// Artemis's company + asset model. The data source itself is an http-transport MCP row named
+// OpenArtemis's company + asset model. The data source itself is an http-transport MCP row named
 // "ScopeSentry" (url + X-API-Key header stored in mcp_servers).
 //
 // Unlike the agent tool layer, here mcphttp.Client.Call invokes MCP tools directly and takes the raw
@@ -420,7 +420,7 @@ func (s *Server) ssPageAll(ctx context.Context, cl *mcphttp.Client, ssType strin
 	return items, truncated, nil
 }
 
-// ssIngest maps one ScopeSentry asset JSON to the Artemis asset store and upserts it.
+// ssIngest maps one ScopeSentry asset JSON to the OpenArtemis asset store and upserts it.
 // Returns a non-empty error string on failure. synced is incremented per kind.
 func (s *Server) ssIngest(as *db.AssetStore, assetType string, raw json.RawMessage, synced map[string]int) string {
 	switch assetType {

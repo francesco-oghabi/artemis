@@ -1,4 +1,4 @@
-// Package mcphttp is a remote (Streamable HTTP) MCP client for Artemis.
+// Package mcphttp is a remote (Streamable HTTP) MCP client for OpenArtemis.
 //
 // The core mcp package only speaks stdio; this adapts an HTTP/JSON-RPC MCP server
 // to the same tool.CoreTool shape (mcp__server__tool) WITHOUT touching the SDK.

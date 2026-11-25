@@ -28,7 +28,7 @@ import (
 	"artemis/traffic"
 )
 
-// Server exposes the Artemis backend over a JSON HTTP API for the shadcn/ui
+// Server exposes the OpenArtemis backend over a JSON HTTP API for the shadcn/ui
 // frontend.
 type Server struct {
 	m      *Manager

@@ -141,9 +141,9 @@ One gap is closed and two remain:
    useful safety net.
 
 And the comparison is **not at harness parity**: the frontier model was driven in a direct
-session with a full shell, the local model inside Artemis's constrained planner/worker
+session with a full shell, the local model inside OpenArtemis's constrained planner/worker
 loop. The gap measured here is therefore model *plus* harness. Isolating the model gap
-needs the still-missing third data point: the frontier model driven *inside* Artemis on the
+needs the still-missing third data point: the frontier model driven *inside* OpenArtemis on the
 same target.
 
 ## Honest limitations
@@ -168,5 +168,3 @@ same target.
    [`../deploy/ollama/`](../deploy/ollama/), or configure a hosted LLM in the UI.
 3. Create a task against `http://juice-shop:3000` and run it several times; take the
    union of real distinct findings as the coverage figure.
-
-See [ROADMAP.md](ROADMAP.md) for what is being measured next.
