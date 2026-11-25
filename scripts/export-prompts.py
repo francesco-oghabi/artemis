@@ -38,6 +38,7 @@ AGENTS = {
     "mainagent": ("agent/mainagent.go", "mainAgentDefaultTmpl"),
     "auto": ("agent/promptcatalog.go", "autoDefaultTmpl"),
     "pentest": ("agent/promptcatalog.go", "pentestDefaultTmpl"),
+    "verifier": ("agent/verifier.go", "verifierDefaultTmpl"),
 }
 
 CONTAINER = os.environ.get("ARTEMIS_PG_CONTAINER", "artemis-postgres-1")

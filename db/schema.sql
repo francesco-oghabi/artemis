@@ -560,6 +560,13 @@ CREATE INDEX IF NOT EXISTS idx_findings_time ON findings(created_at DESC);
 -- the agent fills this in report_finding when confirming a vulnerability, requests taken verbatim from real execution -> later enrichment only writes text, no longer heavily regenerates/reconstructs.
 ALTER TABLE findings ADD COLUMN IF NOT EXISTS reproduction JSONB;
 
+-- Independent-verifier adjudication (Phase 1, shadow): a skeptical pass over a
+-- finding's recorded evidence tags it without changing the confirmed count yet.
+-- verdict: unverified | exploit-proven | verified | needs-manual-verification | rejected.
+ALTER TABLE findings ADD COLUMN IF NOT EXISTS verdict        TEXT NOT NULL DEFAULT 'unverified';
+ALTER TABLE findings ADD COLUMN IF NOT EXISTS verdict_reason TEXT NOT NULL DEFAULT '';
+ALTER TABLE findings ADD COLUMN IF NOT EXISTS verified_at    TIMESTAMPTZ;
+
 -- =====================================================================
 -- M. Backend log persistence
 -- =====================================================================

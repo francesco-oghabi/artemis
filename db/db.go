@@ -153,6 +153,10 @@ var builtinAgents = []builtinAgent{
 	{"auto", "Auto", "assistant", "Assistente operativo della piattaforma: usa gli strumenti per gestire task (crea/guarda/sospendi/suggerisci) e asset, e puo' creare/modificare skill, strumenti personalizzati e MCP.", nil, false, nil},
 	// pentest: agente "pentest autonomo" integrato. Guidato dalla pagina conversazione, percorre da solo l'intera catena da ricognizione a chiusura, pianificando/eseguendo/verificando in proprio. Shell interattiva attiva per default.
 	{"pentest", "Pentest", "assistant", "Agente di pentest autonomo: da solo percorre l'intera catena ricognizione -> superficie d'attacco -> sfruttamento -> verifica -> chiusura, pianificando, eseguendo e verificando in modo avversariale da se'.", nil, true, intp(0)},
+	// verifier: verificatore indipendente e scettico. Adjudica un finding gia' registrato
+	// a partire dalla sola evidenza (Fase 1: niente re-test live), per smascherare i falsi
+	// positivi senza scartare i casi dubbi. Non partecipa al ciclo di orchestrazione.
+	{"verifier", "Verificatore", "assistant", "Verificatore indipendente: giudica in modo scettico se l'evidenza registrata di un finding ne prova davvero la vulnerabilita', senza poterne creare di nuovi ne' ri-testare il bersaglio.", nil, false, nil},
 }
 
 // seedBuiltins inserts the fixed built-in agents and their variable catalog (idempotent).

@@ -82,5 +82,6 @@ func BuiltinPromptSeeds() map[string]string {
 		"worker":    workerDefaultTmpl,
 		"auto":      autoDefaultTmpl,
 		"pentest":   pentestDefaultTmpl,
+		"verifier":  verifierDefaultTmpl,
 	}
 }
