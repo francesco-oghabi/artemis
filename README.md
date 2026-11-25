@@ -92,6 +92,7 @@ flowchart TB
     PL[planner · the only intent producer]
     WK[worker · executes ×N]
     MA[main agent · human interface]
+    VF[verifier · independent, read-only · adjudicates findings]
   end
   subgraph DB[PostgreSQL]
     AGRAPH[asset graph · global]
@@ -103,7 +104,15 @@ flowchart TB
   API --> MA
   PL & WK & MA --> DB
   WK --> SUB
+  EGRAPH -->|finding| VF -->|verdict| EGRAPH
 ```
+
+The **verifier** is an independent, read-only reviewer: it adjudicates each finding's
+recorded evidence against a per-class bar and tags it (`exploit-proven`, `verified`,
+`needs-manual-verification`, or `rejected`), rejecting only what the evidence positively
+fails and preserving anything inconclusive. It cannot create findings or re-test the
+target, so it can only remove spurious certainty, never invent a confirmation. It runs
+as a shadow pass today (it tags findings; it does not yet change the headline coverage).
 
 A design principle runs through the whole project, the **intervention-levels
 taxonomy**: fix each problem at the shallowest level that gives the right generality
