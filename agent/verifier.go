@@ -81,6 +81,18 @@ func validVerdict(s string) string {
 	}
 }
 
+// ConfigFromProfile builds an LLM Config from a stored profile row (the same mapping
+// the server uses), so callers outside the server (the finish-time shadow verifier,
+// the cmd) can resolve a provider from a task's pinned or active profile.
+func ConfigFromProfile(p *db.LLMProfile) Config {
+	cfg := ConfigFrom(p.Format, p.Model, p.BaseURL, p.APIKey, p.Proxy)
+	cfg.RatePerSecond, cfg.RatePerMinute = p.RatePerSecond, p.RatePerMinute
+	cfg.ContextWindowK = p.ContextWindowK
+	cfg.ReasoningEffort = p.ReasoningEffort
+	cfg.SessionHeaderKey = p.SessionHeaderKey
+	return cfg
+}
+
 // VerifyInput is the recorded finding handed to the verifier.
 type VerifyInput struct {
 	VulnClass    string

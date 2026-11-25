@@ -150,12 +150,7 @@ func loadConfig(d *db.DB, profileID int64) (agent.Config, error) {
 	if p == nil {
 		return agent.Config{}, fmt.Errorf("no LLM profile found (id=%d)", profileID)
 	}
-	cfg := agent.ConfigFrom(p.Format, p.Model, p.BaseURL, p.APIKey, p.Proxy)
-	cfg.RatePerSecond, cfg.RatePerMinute = p.RatePerSecond, p.RatePerMinute
-	cfg.ContextWindowK = p.ContextWindowK
-	cfg.ReasoningEffort = p.ReasoningEffort
-	cfg.SessionHeaderKey = p.SessionHeaderKey
-	return cfg, nil
+	return agent.ConfigFromProfile(p), nil
 }
 
 func dryNote(dry bool) string {
