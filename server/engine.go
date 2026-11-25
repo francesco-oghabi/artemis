@@ -468,6 +468,9 @@ func (e *Engine) plannerLoop(ctx context.Context, t *Task) {
 				if err := e.m.SetTaskStatus(t.ID, "done"); err != nil {
 					log.Printf("[planner] task %s marking done in DB failed: %v", t.ID, err)
 				}
+				// Shadow: independently re-test/adjudicate the findings (tags only,
+				// non-blocking, gated by env). No effect on this terminal transition.
+				e.verifyOnFinish(t)
 				// drain already let the running workers finalize; those still not finished (past the
 				// grace) are hard-cancelled by cancelExec and fall into the "task already completed"
 				// branch below, classified as stopped (not blocked).

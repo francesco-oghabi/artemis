@@ -494,6 +494,21 @@ func (t *ToolSet) WorkerTools() []actool.CoreTool {
 	return append(base, t.verifierTools()...)
 }
 
+// VerifierReadTools is the INDEPENDENT verifier's registry: the deterministic class
+// oracles (xss_verify / injection_verify / idor_verify / jwt_verify / ...) plus
+// read-only context tools. It deliberately EXCLUDES every write (report_finding,
+// record_fact, insert_assets, add_intent) and any spawn, so the verifier can
+// re-test a finding against the live target and inspect state, but can neither
+// create findings nor self-confirm. The set_verdict capture tool is added by the
+// caller (VerifyFinding), not here.
+func (t *ToolSet) VerifierReadTools() []actool.CoreTool {
+	base := []actool.CoreTool{
+		t.listFindings(), t.listFacts(), t.nodeDetail(),
+		t.searchKnowledge(), t.listKnowledgeCategories(), t.listAssets(),
+	}
+	return append(base, t.verifierTools()...)
+}
+
 // MainAgentTools returns the human-interface tool set.
 func (t *ToolSet) MainAgentTools() []actool.CoreTool {
 	return []actool.CoreTool{

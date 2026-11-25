@@ -40,11 +40,15 @@ write-back triggers the next round. The loop continues until every goal is prove
 - **Verifier (independent, shadow).** A skeptical, read-only reviewer that adjudicates a
   finding from its recorded evidence and tags it (`exploit-proven` / `verified` /
   `needs-manual-verification` / `rejected`), rejecting only what the evidence positively
-  fails and preserving anything inconclusive. It cannot create findings, dispatch intents,
-  or re-test the target, so it can only remove spurious certainty, never invent a
-  confirmation. Today it runs on demand (`cmd/verifyfindings`) as a shadow pass over
+  fails and preserving anything inconclusive. It runs on a read-only tool set (the
+  deterministic class oracles plus context reads), so it can re-test a finding against the
+  live target but cannot create findings, dispatch intents, or self-confirm; a failed
+  re-test never rejects on its own (it falls back to the recorded evidence). Today it runs
+  on demand (`cmd/verifyfindings`) as a shadow pass over
   findings (writing `findings.verdict`); it does not yet change the confirmed count or the
-  loop.
+  loop. A live run also leaves an audit trail on the exploration graph: its reasoning and
+  verdict are recorded as activity (`worker=verifier`) anchored to the finding node, so a
+  demotion is always traceable to its evidence.
 
 Agents communicate **through the graph**, not by chatting: an intent is an instruction
 for the worker, a fact/finding is data for the planner.

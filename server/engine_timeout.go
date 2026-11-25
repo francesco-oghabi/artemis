@@ -258,6 +258,9 @@ func (e *Engine) settleTask(ctx context.Context, t *Task) {
 		log.Printf("[deadline] task %s setting terminal state failed: %v", t.ID, err)
 	case won:
 		log.Printf("[deadline] task %s finalization complete, terminal state=%s", t.ID, status)
+		// Shadow verification only when THIS path won the terminal race; if the
+		// goals-met path won instead, it already triggered it (avoids a double run).
+		e.verifyOnFinish(t)
 	default:
 		log.Printf("[deadline] task %s already terminal at finalization, keeping original state", t.ID)
 	}

@@ -20,6 +20,7 @@ import (
 
 	"artemis/agent"
 	"artemis/db"
+	actool "artemis/engine/tool"
 )
 
 func main() {
@@ -28,6 +29,8 @@ func main() {
 	all := flag.Bool("all", false, "re-verify every finding, not just those still 'unverified'")
 	dry := flag.Bool("dry", false, "print verdicts without writing them to the database")
 	profileID := flag.Int64("profile", 0, "LLM profile id to use (0 = the active profile)")
+	limit := flag.Int("limit", 0, "adjudicate at most N findings (0 = no limit)")
+	evidenceOnly := flag.Bool("evidence-only", false, "do not re-test live; adjudicate from recorded evidence only")
 	flag.Parse()
 
 	if *taskID <= 0 {
@@ -49,6 +52,12 @@ func main() {
 		log.Fatalf("load LLM config: %v", err)
 	}
 
+	task, err := d.GetTask(*taskID)
+	if err != nil || task == nil {
+		log.Fatalf("task %d not found: %v", *taskID, err)
+	}
+	store := d.Exploration(task.ExplorationID)
+
 	rows, err := d.FindingsForVerify(*taskID, !*all)
 	if err != nil {
 		log.Fatalf("list findings: %v", err)
@@ -57,18 +66,47 @@ func main() {
 		log.Printf("task %d: no findings to verify", *taskID)
 		return
 	}
-	log.Printf("task %d: adjudicating %d finding(s)%s\n", *taskID, len(rows), dryNote(*dry))
+
+	// Build the verifier's read-only re-test tools once (deterministic oracles +
+	// context), reused across findings. Nil in evidence-only mode.
+	var retest []actool.CoreTool
+	mode := "evidence-only"
+	if !*evidenceOnly {
+		vts := agent.NewToolSet(store, "verifier")
+		vts.SetTaskID(*taskID)
+		retest = vts.VerifierReadTools()
+		mode = "live re-test"
+	}
+	log.Printf("task %d: adjudicating %d finding(s) [%s]%s\n", *taskID, len(rows), mode, dryNote(*dry))
+
+	if *limit > 0 && len(rows) > *limit {
+		rows = rows[:*limit]
+	}
 
 	ctx := context.Background()
 	counts := map[string]int{}
 	for _, r := range rows {
+		// In a live run, record the verifier's steps as activity anchored to the
+		// finding node, so its reasoning and verdict are an auditable trail in the
+		// exploration graph / UI (Worker="verifier" is set inside VerifyFinding).
+		// In a dry run we leave the database untouched (no verdict, no activity).
+		var emit func(db.Activity)
+		if !*dry {
+			nid := r.NodeID
+			emit = func(a db.Activity) {
+				if nid > 0 {
+					a.NodeID = &nid
+				}
+				_, _ = store.AppendActivity(a)
+			}
+		}
 		v, ok := agent.VerifyFinding(ctx, cfg, agent.VerifyInput{
 			VulnClass:    r.VulnClass,
 			Severity:     r.Severity,
 			Summary:      r.Summary,
 			Evidence:     r.Evidence,
 			Reproduction: r.Reproduction,
-		}, nil)
+		}, retest, emit)
 		if !ok {
 			counts["no-verdict"]++
 			fmt.Printf("  #%-5d %-28s -> (no verdict, left unverified)\n", r.ID, trunc(r.VulnClass, 28))
@@ -112,12 +150,7 @@ func loadConfig(d *db.DB, profileID int64) (agent.Config, error) {
 	if p == nil {
 		return agent.Config{}, fmt.Errorf("no LLM profile found (id=%d)", profileID)
 	}
-	cfg := agent.ConfigFrom(p.Format, p.Model, p.BaseURL, p.APIKey, p.Proxy)
-	cfg.RatePerSecond, cfg.RatePerMinute = p.RatePerSecond, p.RatePerMinute
-	cfg.ContextWindowK = p.ContextWindowK
-	cfg.ReasoningEffort = p.ReasoningEffort
-	cfg.SessionHeaderKey = p.SessionHeaderKey
-	return cfg, nil
+	return agent.ConfigFromProfile(p), nil
 }
 
 func dryNote(dry bool) string {
