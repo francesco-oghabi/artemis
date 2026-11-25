@@ -94,6 +94,7 @@ flowchart TB
     PL[planner · unico produttore di intent]
     WK[worker · esecuzione ×N]
     MA[main agent · interfaccia umana]
+    VF[verifier · indipendente, read-only · adjudica i finding]
   end
   subgraph DB[PostgreSQL]
     AGRAPH[grafo asset · globale]
@@ -105,7 +106,15 @@ flowchart TB
   API --> MA
   PL & WK & MA --> DB
   WK --> SUB
+  EGRAPH -->|finding| VF -->|verdetto| EGRAPH
 ```
+
+Il **verifier** è un revisore indipendente e read-only: adjudica l'evidenza registrata
+di ogni finding rispetto a una soglia per-classe e lo etichetta (`exploit-proven`,
+`verified`, `needs-manual-verification` o `rejected`), rifiutando solo ciò che l'evidenza
+smentisce e preservando l'incerto. Non può creare finding né ri-testare il bersaglio,
+quindi può solo togliere certezza spuria, mai inventare conferme. Per ora gira come
+passata shadow (etichetta i finding; non cambia ancora la copertura dichiarata).
 
 Un principio attraversa tutto il progetto, la **tassonomia dei livelli d'intervento**:
 risolvi ogni problema al livello più superficiale che dà la generalità e la garanzia

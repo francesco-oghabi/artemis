@@ -37,6 +37,14 @@ write-back triggers the next round. The loop continues until every goal is prove
   records facts or findings. Multiple workers drain the frontier in parallel.
 - **Main agent.** The human interface: answers questions, accepts guidance, and surfaces
   what the automated loop is doing.
+- **Verifier (independent, shadow).** A skeptical, read-only reviewer that adjudicates a
+  finding from its recorded evidence and tags it (`exploit-proven` / `verified` /
+  `needs-manual-verification` / `rejected`), rejecting only what the evidence positively
+  fails and preserving anything inconclusive. It cannot create findings, dispatch intents,
+  or re-test the target, so it can only remove spurious certainty, never invent a
+  confirmation. Today it runs on demand (`cmd/verifyfindings`) as a shadow pass over
+  findings (writing `findings.verdict`); it does not yet change the confirmed count or the
+  loop.
 
 Agents communicate **through the graph**, not by chatting: an intent is an instruction
 for the worker, a fact/finding is data for the planner.
