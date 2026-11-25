@@ -41,7 +41,9 @@ docker-compose.override.yml
 *.swo
 
 # --- agent/session local state ---
-.claude/
+# Ignore local Claude state (settings, sessions) but ship project skills.
+.claude/*
+!.claude/skills/
 *-this-session-is-being-continued-*.txt
 
 # --- os ---
