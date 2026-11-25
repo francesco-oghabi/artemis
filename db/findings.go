@@ -64,9 +64,12 @@ func (d *DB) SetFindingVerdict(findingID int64, verdict, reason string) error {
 	return err
 }
 
-// VerifyRow is a minimal finding row handed to the independent verifier.
+// VerifyRow is a minimal finding row handed to the independent verifier. NodeID is
+// the exploration-graph finding node (0 if none), used to anchor the verifier's
+// audit-trail activity to the finding it adjudicated.
 type VerifyRow struct {
 	ID           int64
+	NodeID       int64
 	VulnClass    string
 	Severity     string
 	Summary      string
@@ -78,7 +81,7 @@ type VerifyRow struct {
 // FindingsForVerify lists a task's findings for adjudication, oldest first. When
 // onlyUnverified is true it returns only rows still at verdict='unverified'.
 func (d *DB) FindingsForVerify(taskID int64, onlyUnverified bool) ([]VerifyRow, error) {
-	q := `SELECT id, vulnclass, severity, summary, evidence,
+	q := `SELECT id, COALESCE(node_id, 0), vulnclass, severity, summary, evidence,
 	             COALESCE(reproduction::text, ''), verdict
 	      FROM findings WHERE task_id = $1`
 	if onlyUnverified {
@@ -94,7 +97,7 @@ func (d *DB) FindingsForVerify(taskID int64, onlyUnverified bool) ([]VerifyRow, 
 	for rows.Next() {
 		var r VerifyRow
 		var repro string
-		if err := rows.Scan(&r.ID, &r.VulnClass, &r.Severity, &r.Summary, &r.Evidence, &repro, &r.Verdict); err != nil {
+		if err := rows.Scan(&r.ID, &r.NodeID, &r.VulnClass, &r.Severity, &r.Summary, &r.Evidence, &repro, &r.Verdict); err != nil {
 			return nil, err
 		}
 		if repro != "" {

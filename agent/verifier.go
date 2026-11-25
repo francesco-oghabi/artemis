@@ -123,7 +123,13 @@ func VerifyFinding(ctx context.Context, c Config, in VerifyInput, emit func(db.A
 					captured = true
 				}
 			}
-			return actool.Text("ok"), nil
+			res := actool.Text("ok")
+			// A valid verdict means the adjudication is logically complete: stop the
+			// run cleanly so the model does not burn extra turns re-submitting.
+			if captured {
+				res.StopContinuation = true
+			}
+			return res, nil
 		},
 	})
 
