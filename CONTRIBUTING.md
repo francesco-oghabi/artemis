@@ -43,6 +43,12 @@ binary to `dist/amd64/artemis`, builds the runtime image, and runs
 - After i18n changes, run `node scripts/check-i18n-keys.mjs` to reconcile the locale keys.
 - Keep the compile green: `go build ./...`.
 - Keep commit messages concise and explain the motivation.
+- Built-in agent prompts are authoritative in the database (the `*DefaultTmpl` consts
+  in `agent/` are only the seed and render fallback). If you tune a built-in prompt and
+  it is meant to ship with the project, export it back into the source with
+  `python3 scripts/export-prompts.py` and commit the changed consts. Do not export
+  deployment-specific state (LLM profiles, per-engagement tweaks, operational data).
+  `python3 scripts/export-prompts.py --check` fails if a const is out of sync.
 
 ## Workflow
 
