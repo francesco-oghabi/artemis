@@ -110,9 +110,11 @@ flowchart TB
 The **verifier** is an independent, read-only reviewer: it adjudicates each finding's
 recorded evidence against a per-class bar and tags it (`exploit-proven`, `verified`,
 `needs-manual-verification`, or `rejected`), rejecting only what the evidence positively
-fails and preserving anything inconclusive. It cannot create findings or re-test the
-target, so it can only remove spurious certainty, never invent a confirmation. It runs
-as a shadow pass today (it tags findings; it does not yet change the headline coverage).
+fails and preserving anything inconclusive. It re-tests a finding with the deterministic
+class oracles (a read-only tool set) but cannot create findings, so it can confirm or
+demote a finding yet never invent a confirmation; a failed re-test never rejects on its
+own. It runs as a shadow pass today (it tags findings; it does not yet change the
+headline coverage).
 
 A design principle runs through the whole project, the **intervention-levels
 taxonomy**: fix each problem at the shallowest level that gives the right generality

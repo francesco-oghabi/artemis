@@ -112,9 +112,11 @@ flowchart TB
 Il **verifier** è un revisore indipendente e read-only: adjudica l'evidenza registrata
 di ogni finding rispetto a una soglia per-classe e lo etichetta (`exploit-proven`,
 `verified`, `needs-manual-verification` o `rejected`), rifiutando solo ciò che l'evidenza
-smentisce e preservando l'incerto. Non può creare finding né ri-testare il bersaglio,
-quindi può solo togliere certezza spuria, mai inventare conferme. Per ora gira come
-passata shadow (etichetta i finding; non cambia ancora la copertura dichiarata).
+smentisce e preservando l'incerto. Ri-testa il finding con gli oracoli deterministici
+per-classe (un tool set read-only) ma non può creare finding, quindi può confermare o
+declassare senza mai inventare conferme; un re-test fallito da solo non rifiuta mai. Per
+ora gira come passata shadow (etichetta i finding; non cambia ancora la copertura
+dichiarata).
 
 Un principio attraversa tutto il progetto, la **tassonomia dei livelli d'intervento**:
 risolvi ogni problema al livello più superficiale che dà la generalità e la garanzia

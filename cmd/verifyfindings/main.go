@@ -20,6 +20,7 @@ import (
 
 	"artemis/agent"
 	"artemis/db"
+	actool "artemis/engine/tool"
 )
 
 func main() {
@@ -29,6 +30,7 @@ func main() {
 	dry := flag.Bool("dry", false, "print verdicts without writing them to the database")
 	profileID := flag.Int64("profile", 0, "LLM profile id to use (0 = the active profile)")
 	limit := flag.Int("limit", 0, "adjudicate at most N findings (0 = no limit)")
+	evidenceOnly := flag.Bool("evidence-only", false, "do not re-test live; adjudicate from recorded evidence only")
 	flag.Parse()
 
 	if *taskID <= 0 {
@@ -64,7 +66,18 @@ func main() {
 		log.Printf("task %d: no findings to verify", *taskID)
 		return
 	}
-	log.Printf("task %d: adjudicating %d finding(s)%s\n", *taskID, len(rows), dryNote(*dry))
+
+	// Build the verifier's read-only re-test tools once (deterministic oracles +
+	// context), reused across findings. Nil in evidence-only mode.
+	var retest []actool.CoreTool
+	mode := "evidence-only"
+	if !*evidenceOnly {
+		vts := agent.NewToolSet(store, "verifier")
+		vts.SetTaskID(*taskID)
+		retest = vts.VerifierReadTools()
+		mode = "live re-test"
+	}
+	log.Printf("task %d: adjudicating %d finding(s) [%s]%s\n", *taskID, len(rows), mode, dryNote(*dry))
 
 	if *limit > 0 && len(rows) > *limit {
 		rows = rows[:*limit]
@@ -93,7 +106,7 @@ func main() {
 			Summary:      r.Summary,
 			Evidence:     r.Evidence,
 			Reproduction: r.Reproduction,
-		}, emit)
+		}, retest, emit)
 		if !ok {
 			counts["no-verdict"]++
 			fmt.Printf("  #%-5d %-28s -> (no verdict, left unverified)\n", r.ID, trunc(r.VulnClass, 28))
